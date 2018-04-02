@@ -24,7 +24,7 @@ class ConvertToWav:
     non-folder use function
     """
 
-    def __init__(self, folder_method):
+    def __init__(self, folder_method=None):
         """
         Constants.
 
@@ -33,7 +33,7 @@ class ConvertToWav:
         self.folder_method = folder_method
         # String, or NoneType, depending on type needed.
 
-    def mp3_to_wav(self, pathname, type_parse=None):
+    def mp3_to_wav(self, pathname):
         """
         MP3 To WAV converter.
 
@@ -55,7 +55,7 @@ class ConvertToWav:
 
         Gives added Function of label file creation
         """
-        if type_parse == 'folder':
+        if self.folder_method == 'folder':
             label_list = open('data_wav/labels.txt', 'w')
             ab_path_cwd = os.getcwd()
             for path, direc, files in os.walk(ab_path_cwd + pathname):
@@ -102,6 +102,7 @@ if __name__ == '__main__':
 
     # pathname = "/data/*.mp3"
     pathname = '/data/'
-    mp3_to_wav(pathname, type_parse='folder')
+    ctw = ConvertToWav('folder')
+    ctw.mp3_to_wav(pathname)
     final_path = 'data_wav'
     # make_label_file(pathname, final_path)
