@@ -31,7 +31,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         conv1_shape = 5
         pool_1_shape = 2
-        pool_2_shape = 2
+        pool_2_shape = 3
         conv1_outshape = 20
         conv2_outshape = 30
         self.output = output_size
@@ -55,31 +55,48 @@ class Net(nn.Module):
         inner = self.maxpool1(inner)
         inner = F.relu(self.conv2(inner))
         inner = self.maxpool2(inner)
-        in_shape = inner.view(inner.numel()).size()[0]
-        mid_shape = int(in_shape / 5)
+        inner, in_shape, mid_shape = self.flatten(inner)
         dense_in = nn.Linear(in_shape, mid_shape)
         dense_out = nn.Linear(mid_shape, self.output)
-        inner = inner.view(inner.numel())
         inner = F.relu(dense_in(inner))
         output = dense_out(inner)
         return output
 
-if __name__ == '__main__':
-    cnn = Net(1, 3, 100, 75, 10)
-    input = torch.randn(1, 3, 100, 75)
+    def flatten(self, input):
+        """
+        Flatten.
+
+        Flatten out the batches for densely connected layers
+        """
+        in_shape = input.size()[1] * input.size()[2] * input.size()[3]
+        mid_shape = int(in_shape / 5)
+        output = input.view(-1, in_shape)
+        return output, in_shape, mid_shape
+
+
+def main():
+    """Placeholder."""
+    batches = 30
+    channels = 2
+    h = 150
+    w = 150
+    label_size = 10
+
+    cnn = Net(batches, channels, h, w, label_size)
+
+    input = torch.randn(batches, channels, h, w)
     input = Variable(input)
     criterion = nn.CrossEntropyLoss()
+    label = torch.LongTensor(np.random.randint(10, size=batches))
+    label = Variable(label)
 
     optimizer = optim.SGD(cnn.parameters(),
                           lr=0.001,
                           momentum=0.9)
 
     optimizer.zero_grad()
-    label = Variable(torch.LongTensor([3]))
 
     output = cnn(input)
-    # Reshape for output
-    output = output.view(-1, 10)
     loss = criterion(output, label)
     loss.backward()
     optimizer.step()
