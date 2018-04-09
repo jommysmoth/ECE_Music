@@ -126,8 +126,8 @@ class ProcessingData:
                                                     Fs=44100)
 
             chn.append(spectrum)
-        left_right_stacked = np.stack(chn, axis=2)
-        return left_right_stacked  # Data_X - Data_Y - Channel
+        left_right_stacked = np.stack(chn, axis=0)
+        return left_right_stacked  # Channel - Data_X - Data_Y
 
     def main(self):
         """
@@ -140,7 +140,7 @@ class ProcessingData:
         seconds_clip = 3
         data_dict = self.add_label(labels,
                                    seconds_clip)
-        # Label Dictionary:Set Amount Per Label-Data_X-Data_Y-Channels
+        # Label Dictionary:Set Amount Per Label-Channels - Data_X-Data_Y
         return data_dict, labels
 
     def rand_train_test_main(self):
@@ -154,13 +154,17 @@ class ProcessingData:
         seconds_clip = 3
         data_dict = self.add_label(labels,
                                    seconds_clip)
-        # Label Dictionary:Set Amount Per Label-Data_X-Data_Y-Channels
+        # Label Dictionary:Set Amount Per Label-Channels-Data_X-Data_Y
         train = {}
         test = {}
+        train_size = 0
+        test_size = 0
         for lab in labels:
             dset = data_dict[lab]
             lab_size = dset.shape[0]
             train_r = int(self.tr_split * lab_size)
+            train_size += train_r
+            test_size += lab_size - train_r
             shuf = np.arange(lab_size)
             np.random.shuffle(shuf)
             train_list = shuf[:train_r]
@@ -169,4 +173,4 @@ class ProcessingData:
             test_array = np.delete(dset, train_list, 0)
             train[lab] = train_array
             test[lab] = test_array
-        return train, test
+        return train, test, train_size, test_size

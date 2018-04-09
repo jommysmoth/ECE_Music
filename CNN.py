@@ -86,6 +86,7 @@ def main():
 
     input = torch.randn(batches, channels, h, w)
     input = Variable(input)
+    print(input)
     criterion = nn.CrossEntropyLoss()
     label = torch.LongTensor(np.random.randint(10, size=batches))
     label = Variable(label)
@@ -102,3 +103,6 @@ def main():
     optimizer.step()
 
     print(loss.data[0])
+
+if __name__ == '__main__':
+    main()
