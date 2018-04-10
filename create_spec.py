@@ -104,7 +104,7 @@ class ProcessingData:
             song_strings = self.find_label(label)
             song_list = []
             for song in song_strings:
-                song_cl_array, samp_rate = self.clipping_song(song, seconds_clip)
+                samp_rate, song_cl_array = wav.read(song, seconds_clip)
                 song_lr = self.left_right_mix(song_cl_array, samp_rate)
                 song_list.append(song_lr)
             label_list.append(np.stack(song_list))

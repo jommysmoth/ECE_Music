@@ -37,6 +37,7 @@ if __name__ == '__main__':
     channels = train_data.shape[1]
     h = train_data.shape[2]
     w = train_data.shape[3]
+    print(channels, h, w)
 
     cnn = Net(batches, channels, h, w, len(labels))
     criterion = nn.CrossEntropyLoss()
