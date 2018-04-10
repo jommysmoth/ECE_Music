@@ -24,3 +24,9 @@ Used to keep track of progress on the project code (and papers evantually as wel
 * Create way to measure time of training
 * Create way to measure loss over time
 * Clean up when all connected
+
+## Making PDF of LaTex file
+
+```shell
+$ pdflatex latex_file/Smith-Music_Classification.tex
+```
