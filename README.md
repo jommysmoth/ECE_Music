@@ -7,11 +7,11 @@ Used to keep track of progress on the project code (and papers evantually as wel
 
 ## Data Processing
 
-* Add greater library of music files/clips for dataset
-* Convert with convert class
-    * Speed up code if it takes outrageously long
-    * Add support for different files if necessary
-* Change train/test output if necessary for CNN
+* Add greater library of music files/clips for dataset 
+* ~~Convert with convert class~~
+    * ~~Speed up code if it takes outrageously long~~
+    * ~~Add support for different files if necessary~~
+* ~~Change train/test output if necessary for CNN~~
 
 ## Network Class
 
@@ -19,10 +19,9 @@ Used to keep track of progress on the project code (and papers evantually as wel
 * Make cleaner (if possible)
 
 ## Main File
-
-* Pipe data into network
-* Create way to measure time of training
-* Create way to measure loss over time
+* ~~Pipe data into network~~
+* ~~Create way to measure time of training~~
+* ~~Create way to measure loss over time~~
 * Clean up when all connected
 
 ## Making PDF of LaTex file
