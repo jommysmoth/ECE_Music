@@ -174,3 +174,6 @@ class ProcessingData:
             train[lab] = train_array
             test[lab] = test_array
         return train, test, train_size, test_size
+    """
+    def normalize():
+    """
