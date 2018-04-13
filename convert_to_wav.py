@@ -65,6 +65,7 @@ class ConvertToWav:
                 for file in files:
                     filetype = file[-4:]
                     filename = file[:-4]
+                    print(filename)
                     if filetype == '.mp3':
                         label_name = path.replace(ab_path_cwd + pathname, "")
                         mp3_form = AudioSegment.from_mp3(path + '/' + file)
@@ -112,7 +113,7 @@ if __name__ == '__main__':
 
     # pathname = "/data/*.mp3"
     pathname = '/data/'
-    ctw = ConvertToWav(1, 'folder')
+    ctw = ConvertToWav(3, 'folder')
     ctw.mp3_to_wav(pathname)
     final_path = 'data_wav'
     # make_label_file(pathname, final_path)

@@ -30,6 +30,7 @@ Work on things next:
 import numpy as np
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
+from scipy import signal
 
 
 class ProcessingData:
@@ -122,10 +123,10 @@ class ProcessingData:
         chn = []
         channel_amount = song.shape[1]
         for lr in range(channel_amount):
-            spectrum, freq, time, im = plt.specgram(song[:, lr],
-                                                    Fs=44100)
+            sp, freqs, bins, im = plt.specgram(song[:, 0], Fs=samp_rate, NFFT=500)
+            sg = im.get_array()
 
-            chn.append(spectrum)
+            chn.append(sg)
         left_right_stacked = np.stack(chn, axis=0)
         return left_right_stacked  # Channel - Data_X - Data_Y
 
@@ -174,6 +175,3 @@ class ProcessingData:
             train[lab] = train_array
             test[lab] = test_array
         return train, test, train_size, test_size
-    """
-    def normalize():
-    """

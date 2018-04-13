@@ -12,6 +12,7 @@ Used to keep track of progress on the project code (and papers evantually as wel
     * ~~Speed up code if it takes outrageously long~~
     * ~~Add support for different files if necessary~~
 * ~~Change train/test output if necessary for CNN~~
+* Add way to print different label images, in order to visualize.
 
 ## Network Class
 
