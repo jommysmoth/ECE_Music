@@ -12,6 +12,8 @@ import torch.optim as optim
 from CNN import Net
 import time
 import math
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 
 def timesince(since):
@@ -48,121 +50,82 @@ def labelout(output):
     return batch_bal_list
 
 
-def shuffle(a, b):
-    """CHANGE."""
-    assert len(a) == len(b)
-    shuffled_a = np.empty(a.shape, dtype=a.dtype)
-    shuffled_b = np.empty(b.shape, dtype=b.dtype)
-    permutation = np.random.permutation(len(a))
-    for old_index, new_index in enumerate(permutation):
-        shuffled_a[new_index] = a[old_index]
-        shuffled_b[new_index] = b[old_index]
-    return shuffled_a, shuffled_b
-
-
-def run_data(data_start, data_end, train_data, train_labels, cnn, optimizer, criterion):
-    """
-    Training.
-
-    Pushes data through network
-    """
-    label_in = train_labels[data_start:data_end]
-    print(data_start, data_end, train_size)
-    label_in = [int(x) for x in label_in]
-
-    examp = train_data[data_start:data_end, :, :, :]
-
-    examp = torch.from_numpy(examp)
-    examp = examp.type(torch.FloatTensor)
-
-    input = Variable(examp)
-    label_in_ten = torch.LongTensor(label_in)
-    label_in_ten = Variable(label_in_ten)
-
-    optimizer.zero_grad()
-
-    output = cnn(input)
-    loss = criterion(output, label_in_ten)
-    loss.backward()
-    optimizer.step()
-
-    guess = labelout(output)
-
-    print(len(guess))
-    print(len(label_in))
-    return guess, label_in, loss
+def print_lab(training, labels, amount):
+    """Seeing how data looks."""
+    for lab in labels:
+        dset = training[lab]
+        for x in range(amount):
+            rand = np.random.randint(0, dset.shape[0])
+            im = dset[rand, 0, :, :]
+            plt.imshow(im)
+            plt.title(lab)
+            plt.figure()
+    plt.show()
 
 
 if __name__ == '__main__':
-    labels = ['Alternative', 'Experimental Rock', 'Grindcore', 'Hardcore', 'Indie Rock', 'Post Rock']
+    # labels = ['Alternative', 'Experimental Rock', 'Grindcore', 'Hardcore', 'Indie Rock', 'Post Rock']
+    labels = ['Rock', 'Rap']
     procd = cst.ProcessingData(labels, train_amount=0.7)
-    train, test, train_size, test_size = procd.rand_train_test_main()
+    data = procd.main()
     print_amount = 10
-    train_labels = []
-    test_labels = []
+    size = 0
+    for lab in labels:
+        size += data[lab].shape[0]
+    # print_lab(data, labels, 3)
 
-    train_data = np.zeros((train_size, train['Grindcore'].shape[1],
-                           train['Grindcore'].shape[2],
-                           train['Grindcore'].shape[3]))
-    last_en = 0
+    data_array = np.zeros((size, data[labels[0]].shape[1],
+                           data[labels[0]].shape[2],
+                           data[labels[0]].shape[3]))
+    start = 0
+    data_labels = []
     for ind, lab in enumerate(labels):
-        start = last_en
-        end = (last_en + train[lab].shape[0])
-        train_data[last_en:(last_en + train[lab].shape[0]), :, :, :] = train[lab]
-        last_en += train[lab].shape[0]
-        for am in range(train[lab].shape[0]):
-            train_labels.append(ind)
+        end = start + data[lab].shape[0]
+        data_array[start:end, :, :, :] = data[lab]
+        start = data[lab].shape[0] - 1
+        for x in range(data[lab].shape[0]):
+            data_labels.append(ind)
 
-    train_labels = np.array(train_labels, dtype=int)
-    train_data, train_labels = shuffle(train_data, train_labels)
+    data_labels = np.array(data_labels)
+    name = 'Data_Set %s' % (data_array.shape,)
+    np.savetxt(name, data_array.flatten())
+    np.savetxt('Label_Set.out', data_labels, delimiter=',')
 
-    runs = 50
+    exit()
+
+    X_train, X_test, y_train, y_test = train_test_split(data_array, data_labels,
+                                                        test_size=0.01,
+                                                        random_state=40)
+
+    runs = 500
     batches = 30
-    channels = train_data.shape[1]
-    h = train_data.shape[2]
-    w = train_data.shape[3]
+    channels = X_train.shape[1]
+    h = X_train.shape[2]
+    w = X_train.shape[3]
     print_every = 3
+    learning_rate = 0.001
 
     cnn = Net(batches, channels, h, w, len(labels))
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(cnn.parameters(),
-                          lr=0.005,
-                          momentum=0.9)
+    optimizer = optim.Adam(cnn.parameters(),
+                           lr=0.005)
 
     start = time.time()
-    print(train_data.shape[0])
+    train_size = X_train.shape[0]
+    exit()
     for run in range(runs):
-        for ins in range(train_data.shape[0]):
+        total_loss = 0
+        count = 0
+        for ins in range(X_train.shape[0]):
             data_start = (ins * batches)
             data_end = data_start + batches - 1
             if data_end >= train_size:
-                label_in = train_labels[data_start:data_end]
-                print(data_start, data_end, train_size)
-                label_in = [int(x) for x in label_in]
-
-                examp = train_data[data_start:data_end, :, :, :]
-
-                examp = torch.from_numpy(examp)
-                examp = examp.type(torch.FloatTensor)
-
-                input = Variable(examp)
-                label_in_ten = torch.LongTensor(label_in)
-                label_in_ten = Variable(label_in_ten)
-
-                optimizer.zero_grad()
-
-                output = cnn(input)
-                loss = criterion(output, label_in_ten)
-                loss.backward()
-                optimizer.step()
-
-                guess = labelout(output)
-                break
-            label_in = train_labels[data_start:data_end]
-            print(data_start, data_end, train_size)
+                data_end = train_size
+            label_in = y_train[data_start:data_end]
+            # print(data_start, data_end, train_size)
             label_in = [int(x) for x in label_in]
 
-            examp = train_data[data_start:data_end, :, :, :]
+            examp = X_train[data_start:data_end, :, :, :]
 
             examp = torch.from_numpy(examp)
             examp = examp.type(torch.FloatTensor)
@@ -177,8 +140,15 @@ if __name__ == '__main__':
             loss = criterion(output, label_in_ten)
             loss.backward()
             optimizer.step()
+            # print(loss.data[0])
 
             guess = labelout(output)
+            total_loss += loss.data[0]
+            count += 1
+            if data_end == train_size:
+                break
         print(guess, label_in)
-        print(loss.data[0])
+        print(total_loss / count)
+        plt.plot(run, total_loss / count)
         print(timesince(start))
+    plt.show()

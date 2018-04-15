@@ -58,7 +58,7 @@ class ProcessingData:
             raise KeyError('Dumby')
         self.tr_split = train_amount
 
-    def clipping_song(self, song, seconds_clip):
+    def clipping_song(self, start, song, seconds_clip):
         """
         File Clipping.
 
@@ -66,13 +66,8 @@ class ProcessingData:
         """
         samp_rate, song_array = wav.read(song)
         sig_len = song_array.shape[0]
-        rand_start = np.random.randint(sig_len / 3, sig_len / 2)
-        if isinstance(self.clip, int):
-            rand_end = rand_start + self.clip
-        else:
-            # Start with simple 44100 sample-rate
-            rand_end = rand_start + (int(self.clip) * 44100)
-        clipped_song = song_array[rand_start:rand_end, :]
+        end = start + ((seconds_clip) * 44100)
+        clipped_song = song_array[start:end, :]
         return clipped_song, samp_rate
 
     def find_label(self, label):
@@ -93,7 +88,7 @@ class ProcessingData:
                     label_list.append(start_file + name + end_file)
         return label_list
 
-    def add_label(self, labels, seconds_clip):
+    def add_label(self, labels, seconds_clip, seconds_total):
         """
         Adding label to data component.
 
@@ -105,9 +100,13 @@ class ProcessingData:
             song_strings = self.find_label(label)
             song_list = []
             for song in song_strings:
-                samp_rate, song_cl_array = wav.read(song, seconds_clip)
-                song_lr = self.left_right_mix(song_cl_array, samp_rate)
-                song_list.append(song_lr)
+                ran = int(seconds_total / seconds_clip)
+                for clips in range(ran):
+                    song_cl_array, samp_rate = self.clipping_song(clips * seconds_clip * 44100, song,
+                                                                  seconds_clip)
+                    song_lr = self.left_right_mix(song_cl_array, samp_rate)
+                    if song_lr.shape == (2, 251, 236):
+                        song_list.append(song_lr)
             label_list.append(np.stack(song_list))
             # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
         for ind, dict_fill in enumerate(label_list):
@@ -125,7 +124,7 @@ class ProcessingData:
         for lr in range(channel_amount):
             sp, freqs, bins, im = plt.specgram(song[:, 0], Fs=samp_rate, NFFT=500)
             sg = im.get_array()
-
+            sg = sg / np.mean(sg)
             chn.append(sg)
         left_right_stacked = np.stack(chn, axis=0)
         return left_right_stacked  # Channel - Data_X - Data_Y
@@ -138,40 +137,10 @@ class ProcessingData:
         """
         # song_strings = glob.glob('data_wav/*.wav')  # only necessary for non-folder input
         labels = self.labels
-        seconds_clip = 3
+        seconds_clip = 2
+        seconds_total = 20
         data_dict = self.add_label(labels,
-                                   seconds_clip)
+                                   seconds_clip,
+                                   seconds_total)
         # Label Dictionary:Set Amount Per Label-Channels - Data_X-Data_Y
-        return data_dict, labels
-
-    def rand_train_test_main(self):
-        """
-        Output Function.
-
-        Used to retrieve numpy array necessary for training.
-        """
-        # song_strings = glob.glob('data_wav/*.wav')  # only necessary for non-folder input
-        labels = self.labels
-        seconds_clip = 3
-        data_dict = self.add_label(labels,
-                                   seconds_clip)
-        # Label Dictionary:Set Amount Per Label-Channels-Data_X-Data_Y
-        train = {}
-        test = {}
-        train_size = 0
-        test_size = 0
-        for lab in labels:
-            dset = data_dict[lab]
-            lab_size = dset.shape[0]
-            train_r = int(self.tr_split * lab_size)
-            train_size += train_r
-            test_size += lab_size - train_r
-            shuf = np.arange(lab_size)
-            np.random.shuffle(shuf)
-            train_list = shuf[:train_r]
-            test_list = shuf[:-train_r]
-            train_array = np.delete(dset, test_list, 0)
-            test_array = np.delete(dset, train_list, 0)
-            train[lab] = train_array
-            test[lab] = test_array
-        return train, test, train_size, test_size
+        return data_dict

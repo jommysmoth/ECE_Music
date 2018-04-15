@@ -69,7 +69,7 @@ class ConvertToWav:
                     if filetype == '.mp3':
                         label_name = path.replace(ab_path_cwd + pathname, "")
                         mp3_form = AudioSegment.from_mp3(path + '/' + file)
-                        half_point = int(len(mp3_form) / 2)
+                        half_point = 0
                         full_clip = self.seconds * 1000  # Runs in miliseconds
                         mp3_wav = mp3_form[half_point:(half_point + full_clip)]
                         mp3_wav.export('data_wav/' + filename + '.wav',
@@ -81,7 +81,7 @@ class ConvertToWav:
                             filename = file[:-5]
                             label_name = path.replace(ab_path_cwd + pathname, "")
                             data, samprate = sf.read(path + '/' + file)
-                            half_point = int(data.shape[0] / 2)
+                            half_point = 0
                             # set value due to different sample sizes
                             set_value = self.seconds * 44100
                             new_data = data[half_point:int(half_point + set_value)]
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
     # pathname = "/data/*.mp3"
     pathname = '/data/'
-    ctw = ConvertToWav(3, 'folder')
+    ctw = ConvertToWav(20, 'folder')
     ctw.mp3_to_wav(pathname)
     final_path = 'data_wav'
     # make_label_file(pathname, final_path)

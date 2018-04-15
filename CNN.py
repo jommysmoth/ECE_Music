@@ -29,20 +29,23 @@ class Net(nn.Module):
         Might make function in order to most accurately create Dense layers
         """
         super(Net, self).__init__()
-        conv1_shape = 5
+        conv1_shape = 3
         pool_1_shape = 2
         pool_2_shape = 3
-        conv1_outshape = 20
-        conv2_outshape = 30
+        conv1_outshape = 10
+        conv2_outshape = 20
         self.output = output_size
         self.conv1 = nn.Conv2d(channels,
                                conv1_outshape,
-                               conv1_shape)
-        self.maxpool1 = nn.MaxPool2d(pool_1_shape)
+                               conv1_shape,
+                               padding=5)
+        self.maxpool1 = nn.AvgPool2d(pool_1_shape)
         self.conv2 = nn.Conv2d(conv1_outshape,
                                conv2_outshape,
-                               conv1_shape)
-        self.maxpool2 = nn.MaxPool2d(pool_2_shape)
+                               conv1_shape,
+                               padding=3)
+        self.maxpool2 = nn.AvgPool2d(pool_2_shape)
+        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input):
         """
@@ -55,11 +58,17 @@ class Net(nn.Module):
         inner = self.maxpool1(inner)
         inner = F.relu(self.conv2(inner))
         inner = self.maxpool2(inner)
-        inner, in_shape, mid_shape = self.flatten(inner)
-        dense_in = nn.Linear(in_shape, mid_shape)
-        dense_out = nn.Linear(mid_shape, self.output)
-        inner = F.relu(dense_in(inner))
-        output = dense_out(inner)
+        inner = self.flatten(inner)
+        dense_1 = nn.Linear(inner.size()[1], 2000)
+        dense_2 = nn.Linear(2000, 1000)
+        dense_3 = nn.Linear(1000, 500)
+        dense_4 = nn.Linear(500, 100)
+        dense_out = nn.Linear(100, self.output)
+        inner = F.sigmoid(dense_1(inner))
+        inner = F.sigmoid(dense_2(inner))
+        inner = F.sigmoid(dense_3(inner))
+        inner = F.sigmoid(dense_4(inner))
+        output = self.softmax(dense_out(inner))
         return output
 
     def flatten(self, input):
@@ -69,9 +78,27 @@ class Net(nn.Module):
         Flatten out the batches for densely connected layers
         """
         in_shape = input.size()[1] * input.size()[2] * input.size()[3]
-        mid_shape = int(in_shape / 5)
         output = input.view(-1, in_shape)
-        return output, in_shape, mid_shape
+        return output
+
+    def fully_connected(self, input):
+        """
+        State how fully connected moves.
+
+        Sure.
+        """
+        layers = 10
+        output = input
+        for x in range(layers):
+            in_shape = input.size()[0]
+            out_shape = int(in_shape / 5)
+            if out_shape < self.output:
+                out_shape = self.output
+            dense = nn.Linear(in_shape, out_shape)
+            output = F.sigmoid(dense(input))
+            if out_shape == self.output:
+                return output
+            in_shape = out_shape
 
 
 def main():
