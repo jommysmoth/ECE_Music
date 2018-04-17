@@ -13,7 +13,6 @@ from CNN import Net
 import time
 import math
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 
 
 def timesince(since):
@@ -63,92 +62,99 @@ def print_lab(training, labels, amount):
     plt.show()
 
 
+def scan_spec(input, w):
+    """
+    Scanning through spec data.
+
+    Assuming a format for input of
+
+    # of Songs (should be one before input, giving 3d input)
+    Channels
+    h
+    amount of song seconds * w
+    Should keep consistent label input for random scans of songs
+    """
+    output = np.empty(input.shape[0], input.shape[1], w)
+    upper = input.shape[1] - w
+    rand_val = np.random.randint(0, upper)
+    rand_upper = rand_val + w
+    output = input[:, :, rand_val:rand_upper]
+    return output
+
+
+def rand_examp(dict_in, batches, labels, w):
+    """
+    Random Examp From Dictionary Train/Test.
+
+    Pick from dictionary what to use.
+    """
+    output_list = []
+    label_list = []
+    for x in range(batches):
+        rand_lab = np.random.randint(2)
+        data = dict_in[labels[rand_lab]]
+        samp = data[np.random.randint(data.shape[0]), :, :, :]
+        output_list.append(scan_spec(samp, w))
+        label_list.append(rand_lab)
+    output = np.stack(output_list, axis=0)
+    output_label = np.array(label_list)
+    return output, output_label
+
+
 if __name__ == '__main__':
     # labels = ['Alternative', 'Experimental Rock', 'Grindcore', 'Hardcore', 'Indie Rock', 'Post Rock']
     labels = ['Rock', 'Rap']
-    procd = cst.ProcessingData(labels, train_amount=0.7)
-    data = procd.main()
-    print_amount = 10
-    size = 0
-    for lab in labels:
-        size += data[lab].shape[0]
-    # print_lab(data, labels, 3)
+    override_convert = False
+    procd = cst.ProcessingData(labels, train_amount=0.7,
+                               seconds_total=30,
+                               data_folder='data',
+                               override_convert=override_convert)
+    train, test = procd.main()
+    override = True
 
-    data_array = np.zeros((size, data[labels[0]].shape[1],
-                           data[labels[0]].shape[2],
-                           data[labels[0]].shape[3]))
-    start = 0
-    data_labels = []
-    for ind, lab in enumerate(labels):
-        end = start + data[lab].shape[0]
-        data_array[start:end, :, :, :] = data[lab]
-        start = data[lab].shape[0] - 1
-        for x in range(data[lab].shape[0]):
-            data_labels.append(ind)
-
-    data_labels = np.array(data_labels)
-    name = 'Data_Set %s' % (data_array.shape,)
-    np.savetxt(name, data_array.flatten())
-    np.savetxt('Label_Set.out', data_labels, delimiter=',')
-
-    exit()
-
-    X_train, X_test, y_train, y_test = train_test_split(data_array, data_labels,
-                                                        test_size=0.01,
-                                                        random_state=40)
-
-    runs = 500
+    n_iter = 10000
     batches = 30
-    channels = X_train.shape[1]
-    h = X_train.shape[2]
-    w = X_train.shape[3]
-    print_every = 3
+    start_example, not_needed = rand_examp(train, 2, labels, 100)  # just needed for height
+    channels = start_example.shape[1]
+    h = start_example.shape[2]
+    w = h
     learning_rate = 0.001
+    stop = 100
 
     cnn = Net(batches, channels, h, w, len(labels))
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(),
-                           lr=0.005)
+                           lr=learning_rate)
 
     start = time.time()
-    train_size = X_train.shape[0]
-    exit()
-    for run in range(runs):
-        total_loss = 0
-        count = 0
-        for ins in range(X_train.shape[0]):
-            data_start = (ins * batches)
-            data_end = data_start + batches - 1
-            if data_end >= train_size:
-                data_end = train_size
-            label_in = y_train[data_start:data_end]
-            # print(data_start, data_end, train_size)
-            label_in = [int(x) for x in label_in]
+    total_loss = 0
+    count = 0
 
-            examp = X_train[data_start:data_end, :, :, :]
+    for run in range(n_iter):
+        examp, label_in = rand_examp(train, w)
 
-            examp = torch.from_numpy(examp)
-            examp = examp.type(torch.FloatTensor)
+        examp = torch.from_numpy(examp)
+        examp = examp.type(torch.FloatTensor)
 
-            input = Variable(examp)
-            label_in_ten = torch.LongTensor(label_in)
-            label_in_ten = Variable(label_in_ten)
+        input = Variable(examp)
+        label_in_ten = torch.LongTensor(label_in)
+        label_in_ten = Variable(label_in_ten)
 
-            optimizer.zero_grad()
+        optimizer.zero_grad()
 
-            output = cnn(input)
-            loss = criterion(output, label_in_ten)
-            loss.backward()
-            optimizer.step()
-            # print(loss.data[0])
-
+        output = cnn(input)
+        loss = criterion(output, label_in_ten)
+        loss.backward()
+        optimizer.step()
+        # print(loss.data[0])
+        total_loss += loss.data[0]
+        count += 1
+        if run % stop == 0:
             guess = labelout(output)
-            total_loss += loss.data[0]
-            count += 1
-            if data_end == train_size:
-                break
-        print(guess, label_in)
-        print(total_loss / count)
-        plt.plot(run, total_loss / count)
-        print(timesince(start))
+            print(guess, label_in)
+            print(total_loss / count)
+            plt.plot(run, total_loss / count)
+            print(timesince(start))
+            total_loss = 0
+            count = 0
     plt.show()
