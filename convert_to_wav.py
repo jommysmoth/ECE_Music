@@ -35,8 +35,8 @@ class ConvertToWav:
         self.folder_method = folder_method
         self.seconds = seconds_clip
         self.path = path
-        self.data_folder = path + '/'
-        self.out_folder = path + '_wav' + '/'
+        self.data_folder = path
+        self.out_folder = path + '_wav' 
         # String, or NoneType, depending on type needed.
 
     def mp3_to_wav(self, pathname):
@@ -47,14 +47,14 @@ class ConvertToWav:
         of all mp3 go to wav in a different folder. When files are mixed (wav, flac,
         mp3, etc), code will be updated for transers. For now, this is functioning as
         spectrogram proof of concept
-        """
+
         song_strings = glob.glob(pathname)
         for song in song_strings:
             mp3_form = AudioSegment.from_mp3(song)
             song_name = song[5:-4]
             mp3_form.export('data_wav/' + song_name + '.wav',
                             format='wav')
-        """
+
         This is the portion of the code used for when the data is sorted in folders,
         instead of relying on metadata. Default is None, giving the above functional
         use.
@@ -62,35 +62,36 @@ class ConvertToWav:
         Gives added Function of label file creation
         """
         if self.folder_method == 'folder':
-            label_list = open(self.out_folder + 'labels.txt', 'w')
+            label_list = open(self.out_folder + '/' + 'labels.txt', 'w')
             ab_path_cwd = os.getcwd()
-            for path, direc, files in os.walk(ab_path_cwd + self.data_folder):
+            for path, direc, files in os.walk(ab_path_cwd + '/' + self.data_folder):
                 for file in files:
                     filetype = file[-4:]
                     filename = file[:-4]
                     print(filename)
                     if filetype == '.mp3':
-                        label_name = path.replace(ab_path_cwd + self.data_folder, "")
+                        label_name = path.replace(ab_path_cwd + '/' + self.data_folder, "")
+                        label_name = label_name[1:]
                         mp3_form = AudioSegment.from_mp3(path + '/' + file)
                         half_point = 0
                         full_clip = self.seconds * 1000  # Runs in miliseconds
                         mp3_wav = mp3_form[half_point:(half_point + full_clip)]
-                        mp3_wav.export(self.out_folder + filename + '.wav',
+                        mp3_wav.export(self.out_folder + '/' + filename + '.wav',
                                        format='wav')
                         label_list.write('%s : %s\n' % (filename, label_name))
                     else:
                         if file[-5:] == '.flac':
                             filetype = file[-5:]
                             filename = file[:-5]
-                            label_name = path.replace(ab_path_cwd + self.data_folder, "")
+                            label_name = path.replace(ab_path_cwd + '/' + self.data_folder, "")
+                            label_name = label_name[1:]
                             data, samprate = sf.read(path + '/' + file)
                             half_point = 0
                             # set value due to different sample sizes
                             set_value = self.seconds * 44100
                             new_data = data[half_point:int(half_point + set_value)]
-                            sf.write(self.out_folder + filename + '.wav', new_data, samprate)
+                            sf.write(self.out_folder + '/' + filename + '.wav', new_data, samprate)
                             label_list.write('%s : %s\n' % (filename, label_name))
-            open('Data_Loaded.txt', 'w')
         return
 
     def make_label_file(self, pathname, final_path):

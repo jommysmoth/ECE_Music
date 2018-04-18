@@ -13,6 +13,8 @@ from CNN import Net
 import time
 import math
 import matplotlib.pyplot as plt
+from pathlib import Path
+import pickle
 
 
 def timesince(since):
@@ -74,8 +76,8 @@ def scan_spec(input, w):
     amount of song seconds * w
     Should keep consistent label input for random scans of songs
     """
-    output = np.empty(input.shape[0], input.shape[1], w)
-    upper = input.shape[1] - w
+    output = np.empty((input.shape[0], input.shape[1], w))
+    upper = input.shape[2] - w
     rand_val = np.random.randint(0, upper)
     rand_upper = rand_val + w
     output = input[:, :, rand_val:rand_upper]
@@ -105,13 +107,27 @@ if __name__ == '__main__':
     # labels = ['Alternative', 'Experimental Rock', 'Grindcore', 'Hardcore', 'Indie Rock', 'Post Rock']
     labels = ['Rock', 'Rap']
     override_convert = False
-    procd = cst.ProcessingData(labels, train_amount=0.7,
+    procd = cst.ProcessingData(labels, train_amount=0.8,
                                seconds_total=30,
                                data_folder='data',
                                override_convert=override_convert)
-    train, test = procd.main()
+    condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
+    override_process = True
+    if condition or override_process:
+        train, test = procd.main_train_test()
+        with open('data_dict/train.pickle', 'wb') as handle:
+            pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('data_dict/test.pickle', 'wb') as handle:
+            pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        print('Train / Test Data Saved')
+        exit()
+    else:
+        with open('data_dict/train.pickle', 'rb') as handle:
+            train = pickle.load(handle)
+        with open('data_dict/test.pickle', 'rb') as handle:
+            test = pickle.load(handle)
+        print('Train / Test Data Loaded')
     override = True
-
     n_iter = 10000
     batches = 30
     start_example, not_needed = rand_examp(train, 2, labels, 100)  # just needed for height
@@ -123,15 +139,15 @@ if __name__ == '__main__':
 
     cnn = Net(batches, channels, h, w, len(labels))
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(cnn.parameters(),
-                           lr=learning_rate)
+    optimizer = optim.SGD(cnn.parameters(),
+                          lr=learning_rate)
 
     start = time.time()
     total_loss = 0
     count = 0
 
     for run in range(n_iter):
-        examp, label_in = rand_examp(train, w)
+        examp, label_in = rand_examp(train, batches, labels, w)
 
         examp = torch.from_numpy(examp)
         examp = examp.type(torch.FloatTensor)

@@ -84,11 +84,12 @@ class ProcessingData:
             song_strings = self.find_label(label)
             song_list = []
             for song in song_strings:
-                song_cl_array, samp_rate = wav.read(song)
+                samp_rate, song_cl_array = wav.read(song)
                 song_lr = self.left_right_mix(song_cl_array, samp_rate)
                 song_list.append(song_lr)
             label_list.append(np.stack(song_list))
             # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
+            print(label + ' Conversion Done')
         for ind, dict_fill in enumerate(label_list):
             label_dict[labels[ind]] = dict_fill
         return label_dict
@@ -123,7 +124,7 @@ class ProcessingData:
         # Label Dictionary:Set Amount Per Label-Channels - Data_X-Data_Y
         return data_dict
 
-    def main_train_test(self, data_dict):
+    def main_train_test(self):
         """
         Split Data.
 
@@ -131,11 +132,12 @@ class ProcessingData:
         """
         train = {}
         test = {}
-        pathname = self.path + '/'
-        path_wav = self.path + '_wav' + '/'
+        pathname = self.path
         ctw = ConvertToWav(self.seconds_total, pathname)
-        if not Path(path_wav + 'Data_Loaded.txt').is_file():
+        # print(self.override, not Path(pathname + '_wav' + 'Data_Loaded.txt').is_file())
+        if not Path(pathname + '_wav/' + 'Data_Loaded.txt').is_file():
             ctw.mp3_to_wav(pathname)
+            open(pathname + '_wav/' + 'Data_Loaded.txt', 'w')
         elif self.override:
             ctw.mp3_to_wav(pathname)
             print('Data Written Over')
@@ -146,7 +148,8 @@ class ProcessingData:
                                    self.seconds_total)
         for lab in self.labels:
             data = data_dict[lab]
-            train_r = self.tr_split * data.shape[0]
-            train[lab] = data[:-train_r]
-            test[lab] = data[:train_r]
+            print(data.shape)
+            train_r = int(self.tr_split * data.shape[0])
+            train[lab] = data[:train_r]
+            test[lab] = data[:-train_r]
         return train, test

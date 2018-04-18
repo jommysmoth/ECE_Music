@@ -59,16 +59,11 @@ class Net(nn.Module):
         inner = F.relu(self.conv2(inner))
         inner = self.maxpool2(inner)
         inner = self.flatten(inner)
-        dense_1 = nn.Linear(inner.size()[1], 2000)
-        dense_2 = nn.Linear(2000, 1000)
-        dense_3 = nn.Linear(1000, 500)
-        dense_4 = nn.Linear(500, 100)
-        dense_out = nn.Linear(100, self.output)
-        inner = F.sigmoid(dense_1(inner))
-        inner = F.sigmoid(dense_2(inner))
-        inner = F.sigmoid(dense_3(inner))
-        inner = F.sigmoid(dense_4(inner))
-        output = self.softmax(dense_out(inner))
+        dense_1 = nn.Linear(inner.size()[1], int(inner.size()[1] / 100))
+        dense_2 = nn.Linear(int(inner.size()[1] / 100), self.output)
+        inner = F.relu(dense_1(inner))
+        inner = F.relu(dense_2(inner))
+        output = self.softmax(inner)
         return output
 
     def flatten(self, input):
