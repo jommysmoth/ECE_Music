@@ -29,22 +29,20 @@ class Net(nn.Module):
         Might make function in order to most accurately create Dense layers
         """
         super(Net, self).__init__()
-        conv1_shape = 3
+        conv1_shape = 5
         pool_1_shape = 2
-        pool_2_shape = 3
+        pool_2_shape = 2
         conv1_outshape = 10
         conv2_outshape = 20
         self.output = output_size
         self.conv1 = nn.Conv2d(channels,
                                conv1_outshape,
-                               conv1_shape,
-                               padding=5)
-        self.maxpool1 = nn.AvgPool2d(pool_1_shape)
+                               conv1_shape)
+        self.maxpool1 = nn.MaxPool2d(pool_1_shape)
         self.conv2 = nn.Conv2d(conv1_outshape,
                                conv2_outshape,
-                               conv1_shape,
-                               padding=3)
-        self.maxpool2 = nn.AvgPool2d(pool_2_shape)
+                               conv1_shape)
+        self.maxpool2 = nn.MaxPool2d(pool_2_shape)
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input):
@@ -63,7 +61,7 @@ class Net(nn.Module):
         dense_2 = nn.Linear(int(inner.size()[1] / 100), self.output)
         inner = F.relu(dense_1(inner))
         inner = F.relu(dense_2(inner))
-        output = self.softmax(inner)
+        output = inner
         return output
 
     def flatten(self, input):

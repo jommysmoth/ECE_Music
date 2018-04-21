@@ -16,6 +16,8 @@ import soundfile as sf
 import glob
 from mutagen.id3 import ID3
 import os
+import random
+from tqdm import tqdm
 
 
 class ConvertToWav:
@@ -26,7 +28,7 @@ class ConvertToWav:
     non-folder use function
     """
 
-    def __init__(self, seconds_clip, path, folder_method='folder'):
+    def __init__(self, seconds_clip, path, conversions, ext_storage, folder_method='folder'):
         """
         Constants.
 
@@ -35,8 +37,9 @@ class ConvertToWav:
         self.folder_method = folder_method
         self.seconds = seconds_clip
         self.path = path
-        self.data_folder = path
-        self.out_folder = path + '_wav' 
+        self.out_folder = path + '_wav'
+        self.total_conv = conversions
+        self.ext_storage = ext_storage
         # String, or NoneType, depending on type needed.
 
     def mp3_to_wav(self, pathname):
@@ -63,35 +66,35 @@ class ConvertToWav:
         """
         if self.folder_method == 'folder':
             label_list = open(self.out_folder + '/' + 'labels.txt', 'w')
-            ab_path_cwd = os.getcwd()
-            for path, direc, files in os.walk(ab_path_cwd + '/' + self.data_folder):
-                for file in files:
-                    filetype = file[-4:]
-                    filename = file[:-4]
-                    print(filename)
-                    if filetype == '.mp3':
-                        label_name = path.replace(ab_path_cwd + '/' + self.data_folder, "")
-                        label_name = label_name[1:]
-                        mp3_form = AudioSegment.from_mp3(path + '/' + file)
+            my_path_cwd = self.ext_storage
+            labels = os.listdir(my_path_cwd)
+            pbar = tqdm(range(self.total_conv))
+            for upl in pbar:
+                rand_lab = random.choice(labels)
+                path = my_path_cwd + '/' + rand_lab
+                file = random.choice(os.listdir(path))
+                filetype = file[-4:]
+                filename = file[:-4]
+                pbar.set_description(filename)
+                if filetype == '.mp3':
+                    mp3_form = AudioSegment.from_mp3(path + '/' + file)
+                    half_point = 0
+                    full_clip = self.seconds * 1000  # Runs in miliseconds
+                    mp3_wav = mp3_form[half_point:(half_point + full_clip)]
+                    mp3_wav.export(self.out_folder + '/' + filename + '.wav',
+                                   format='wav')
+                    label_list.write('%s : %s\n' % (filename, rand_lab))
+                else:
+                    if file[-5:] == '.flac':
+                        filetype = file[-5:]
+                        filename = file[:-5]
+                        data, samprate = sf.read(path + '/' + file)
                         half_point = 0
-                        full_clip = self.seconds * 1000  # Runs in miliseconds
-                        mp3_wav = mp3_form[half_point:(half_point + full_clip)]
-                        mp3_wav.export(self.out_folder + '/' + filename + '.wav',
-                                       format='wav')
-                        label_list.write('%s : %s\n' % (filename, label_name))
-                    else:
-                        if file[-5:] == '.flac':
-                            filetype = file[-5:]
-                            filename = file[:-5]
-                            label_name = path.replace(ab_path_cwd + '/' + self.data_folder, "")
-                            label_name = label_name[1:]
-                            data, samprate = sf.read(path + '/' + file)
-                            half_point = 0
-                            # set value due to different sample sizes
-                            set_value = self.seconds * 44100
-                            new_data = data[half_point:int(half_point + set_value)]
-                            sf.write(self.out_folder + '/' + filename + '.wav', new_data, samprate)
-                            label_list.write('%s : %s\n' % (filename, label_name))
+                        # set value due to different sample sizes
+                        set_value = self.seconds * samprate
+                        new_data = data[half_point:int(half_point + set_value)]
+                        sf.write(self.out_folder + '/' + filename + '.wav', new_data, samprate)
+                        label_list.write('%s : %s\n' % (filename, rand_lab))
         return
 
     def make_label_file(self, pathname, final_path):

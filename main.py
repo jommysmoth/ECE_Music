@@ -15,6 +15,9 @@ import math
 import matplotlib.pyplot as plt
 from pathlib import Path
 import pickle
+import random
+import os
+from tqdm import tqdm
 
 
 def timesince(since):
@@ -29,14 +32,6 @@ def timesince(since):
     m = math.floor(s / 60)
     s -= m * 60
     return ' %dm %ds' % (m, s)
-
-
-def norm(input):
-    """Used to normalize by channel."""
-    for chn in range(input.shape[1]):
-        cur = input[:, chn, :, :]
-        input[:, chn, :, :] = cur / np.mean(cur)
-    return input
 
 
 def labelout(output):
@@ -64,27 +59,15 @@ def print_lab(training, labels, amount):
     plt.show()
 
 
-def scan_spec(input, w):
-    """
-    Scanning through spec data.
-
-    Assuming a format for input of
-
-    # of Songs (should be one before input, giving 3d input)
-    Channels
-    h
-    amount of song seconds * w
-    Should keep consistent label input for random scans of songs
-    """
-    output = np.empty((input.shape[0], input.shape[1], w))
-    upper = input.shape[2] - w
-    rand_val = np.random.randint(0, upper)
-    rand_upper = rand_val + w
-    output = input[:, :, rand_val:rand_upper]
+def ref_shape(first, second):
+    """Make all images uniform."""
+    rand_start = np.random.randint(first.shape[1] - second.shape[1])
+    end = rand_start + second.shape[1]
+    output = first[:, rand_start:end]
     return output
 
 
-def rand_examp(dict_in, batches, labels, w):
+def rand_examp(dict_in, batches, labels, force):
     """
     Random Examp From Dictionary Train/Test.
 
@@ -93,84 +76,151 @@ def rand_examp(dict_in, batches, labels, w):
     output_list = []
     label_list = []
     for x in range(batches):
-        rand_lab = np.random.randint(2)
+        rand_lab = np.random.randint(len(labels))
         data = dict_in[labels[rand_lab]]
-        samp = data[np.random.randint(data.shape[0]), :, :, :]
-        output_list.append(scan_spec(samp, w))
+        samp = random.choice(data)
         label_list.append(rand_lab)
+        if samp.shape[1] > force:
+            rand_start = np.random.randint(samp.shape[1] - force)
+            end = rand_start + force
+            samp = samp[:, rand_start:end]
+        output_list.append(samp)
     output = np.stack(output_list, axis=0)
     output_label = np.array(label_list)
     return output, output_label
 
 
+def delete_load_folder(path):
+    """Used for saving space on songs for loading."""
+    song_list = os.listdir(path)
+    for name in song_list:
+        os.remove(path + '/' + name)
+    print('Old Data Erased')
+    return
+
+
 if __name__ == '__main__':
-    # labels = ['Alternative', 'Experimental Rock', 'Grindcore', 'Hardcore', 'Indie Rock', 'Post Rock']
-    labels = ['Rock', 'Rap']
-    override_convert = False
-    procd = cst.ProcessingData(labels, train_amount=0.8,
+    labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
+    not_done = True
+    override_convert = True
+    update_songs = 100
+    clean_after_pickle = True
+    net_override = False
+    override_process = True
+    external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
+    procd = cst.ProcessingData(labels, train_amount=0.7,
                                seconds_total=30,
                                data_folder='data',
-                               override_convert=override_convert)
+                               override_convert=override_convert,
+                               conversions=update_songs,
+                               ext_storage=external_file_area)
     condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
-    override_process = True
-    if condition or override_process:
-        train, test = procd.main_train_test()
-        with open('data_dict/train.pickle', 'wb') as handle:
-            pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open('data_dict/test.pickle', 'wb') as handle:
-            pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        print('Train / Test Data Saved')
-        exit()
-    else:
-        with open('data_dict/train.pickle', 'rb') as handle:
-            train = pickle.load(handle)
-        with open('data_dict/test.pickle', 'rb') as handle:
-            test = pickle.load(handle)
-        print('Train / Test Data Loaded')
-    override = True
-    n_iter = 10000
-    batches = 30
-    start_example, not_needed = rand_examp(train, 2, labels, 100)  # just needed for height
-    channels = start_example.shape[1]
-    h = start_example.shape[2]
-    w = h
-    learning_rate = 0.001
-    stop = 100
+    while not_done:
+        if condition or override_process:
+            train, test = procd.main_train_test()
+            with open('data_dict/train.pickle', 'wb') as handle:
+                pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            with open('data_dict/test.pickle', 'wb') as handle:
+                pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            if override_process:
+                print('Overwrote Train / Test Data')
+            else:
+                print('Train / Test Data Saved')
+        else:
+            with open('data_dict/train.pickle', 'rb') as handle:
+                train = pickle.load(handle)
+            with open('data_dict/test.pickle', 'rb') as handle:
+                test = pickle.load(handle)
+            print('Train / Test Data Loaded')
+        delete_load_folder('data_wav')
+        n_iter = 1000
+        batches = 30
+        force = 10000
+        start_example, not_needed = rand_examp(train, batches, labels, force)  # just needed for height
+        h = start_example.shape[1]
+        w = start_example.shape[2]
+        channels = 1
+        learning_rate = 0.001
+        stop_show = n_iter / 10
+        stop_plot = n_iter / 50
 
-    cnn = Net(batches, channels, h, w, len(labels))
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(cnn.parameters(),
-                          lr=learning_rate)
+        train_model_path = 'model_train/train.out'
+        train_condition = not Path(train_model_path).is_file()
+        if train_condition or net_override:
+            cnn = Net(batches, channels, h, w, len(labels))
+        else:
+            cnn = torch.load(train_model_path)
+            print('Model Loaded In')
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(cnn.parameters(),
+                              lr=learning_rate,
+                              momentum=0.9)
+        start = time.time()
+        total_loss = 0
+        print_loss = 0
+        count = 0
+        count_plot = 0
+        test_tot = 10
+        all_losses = []
+        loss_bar = tqdm(range(n_iter))
 
-    start = time.time()
-    total_loss = 0
-    count = 0
+        for run in loss_bar:
+            examp, label_in = rand_examp(train, batches, labels, force)
 
-    for run in range(n_iter):
-        examp, label_in = rand_examp(train, batches, labels, w)
+            examp = torch.from_numpy(examp)
+            examp = examp.type(torch.FloatTensor)
+            examp = examp[:, None, :, :]
 
-        examp = torch.from_numpy(examp)
-        examp = examp.type(torch.FloatTensor)
+            input = Variable(examp)
+            label_in_ten = torch.LongTensor(label_in)
+            label_in_ten = Variable(label_in_ten)
 
-        input = Variable(examp)
-        label_in_ten = torch.LongTensor(label_in)
-        label_in_ten = Variable(label_in_ten)
+            optimizer.zero_grad()
 
-        optimizer.zero_grad()
-
-        output = cnn(input)
-        loss = criterion(output, label_in_ten)
-        loss.backward()
-        optimizer.step()
-        # print(loss.data[0])
-        total_loss += loss.data[0]
-        count += 1
-        if run % stop == 0:
+            output = cnn(input)
+            # print(output, label_in_ten)
+            loss = criterion(output, label_in_ten)
+            loss.backward()
+            optimizer.step()
+            # print(loss.data[0])
+            total_loss += loss.data[0]
+            count += 1
+            count_plot += 1
+            print_loss += loss.data[0]
             guess = labelout(output)
-            print(guess, label_in)
-            print(total_loss / count)
-            plt.plot(run, total_loss / count)
-            print(timesince(start))
-            total_loss = 0
-            count = 0
-    plt.show()
+            accuracy = sum(1 for x, y in zip(guess, label_in) if x == y) / len(guess)
+            if run % stop_show == 0:
+                loss_bar.set_description('Loss: %1.4f, Accuracy: %0.4f' % (print_loss / count, accuracy))
+                print_loss = 0
+                count = 0
+            if run % stop_plot == 0:
+                all_losses.append(total_loss / count_plot)
+                total_loss = 0
+                count_plot = 0
+        torch.save(cnn, train_model_path)
+        print('Model Saved')
+        net_override = False
+        if loss.data[0] < 0.2:
+            not_done = False
+            plt.plot(all_losses)
+            plt.show()
+        """
+        suc = 0
+        attempts = 0
+        for test_am in range(test_tot):
+            rand_test, true_label = rand_examp(test, batches, labels, force)
+            rand_test = torch.from_numpy(rand_test)
+            rand_test = rand_test.type(torch.FloatTensor)
+            rand_test = rand_test[:, None, :, :]
+            rand_test = Variable(rand_test)
+            output = cnn(rand_test)
+            guess = labelout(output)
+            for ind, g in enumerate(guess):
+                if g == true_label[ind]:
+                    suc += 1
+                attempts += 1
+        accuracy = (suc / attempts) * 100
+        print('\n\n Accuracy of the model is: %f' % (accuracy))
+        plt.plot(all_losses)
+        plt.show()
+        """
