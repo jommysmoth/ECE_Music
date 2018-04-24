@@ -34,6 +34,7 @@ from convert_to_wav import ConvertToWav
 import librosa
 import pyaudio
 import wave
+from tqdm import tqdm
 
 
 class ProcessingData:
@@ -66,8 +67,8 @@ class ProcessingData:
         Solid relative path now, with be made modular if necessary
         """
         label_list = []
-        labels_doc = open('data_wav/labels.txt', 'r')
-        start_file = 'data_wav/'
+        start_file = self.path + '_wav/'
+        labels_doc = open(start_file + 'labels.txt', 'r')
         end_file = '.wav'
         with labels_doc as doc:
             data = doc.readlines()
@@ -111,15 +112,14 @@ class ProcessingData:
         for ind, label in enumerate(labels):
             song_strings = self.find_label(label)
             song_list = []
-            for song in song_strings:
+            for song in tqdm(song_strings):
+                # self.listen_to_clip(song)
                 y, song_lr = librosa.load(song, mono=True)
                 sp = librosa.feature.melspectrogram(y=y, sr=song_lr, n_mels=128,
                                                     n_fft=2048, hop_length=1024)
                 sp = librosa.power_to_db(sp, ref=np.max)
-                # print(sp.shape)
-                sp = sp / np.mean(sp)
-                if sp.shape[1] == 646:
-                    song_list.append(sp)
+                # print(np.where(sp == 0))
+                song_list.append(sp)
             label_dict[labels[ind]] = song_list
             # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
             print(label + ' Conversion Done')

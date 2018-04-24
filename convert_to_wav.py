@@ -18,6 +18,7 @@ from mutagen.id3 import ID3
 import os
 import random
 from tqdm import tqdm
+import numpy as np
 
 
 class ConvertToWav:
@@ -78,9 +79,11 @@ class ConvertToWav:
                 pbar.set_description(filename)
                 if filetype == '.mp3':
                     mp3_form = AudioSegment.from_mp3(path + '/' + file)
-                    half_point = 0
                     full_clip = self.seconds * 1000  # Runs in miliseconds
-                    mp3_wav = mp3_form[half_point:(half_point + full_clip)]
+                    if full_clip > len(mp3_form):
+                        continue
+                    rand_start = np.random.randint(0, len(mp3_form) - full_clip)
+                    mp3_wav = mp3_form[rand_start:(rand_start + full_clip)]
                     mp3_wav.export(self.out_folder + '/' + filename + '.wav',
                                    format='wav')
                     label_list.write('%s : %s\n' % (filename, rand_lab))
@@ -89,10 +92,12 @@ class ConvertToWav:
                         filetype = file[-5:]
                         filename = file[:-5]
                         data, samprate = sf.read(path + '/' + file)
-                        half_point = 0
                         # set value due to different sample sizes
                         set_value = self.seconds * samprate
-                        new_data = data[half_point:int(half_point + set_value)]
+                        if set_value > len(data):
+                            continue
+                        rand_start = np.random.randint(0, len(data) - set_value)
+                        new_data = data[rand_start:int(rand_start + set_value)]
                         sf.write(self.out_folder + '/' + filename + '.wav', new_data, samprate)
                         label_list.write('%s : %s\n' % (filename, rand_lab))
         return

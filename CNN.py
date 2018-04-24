@@ -56,10 +56,14 @@ class Net(nn.Module):
         inner = self.maxpool1(inner)
         inner = F.relu(self.conv2(inner))
         inner = self.maxpool2(inner)
+        inner = F.relu(self.conv1(input))
+        inner = self.maxpool1(inner)
         inner = self.flatten(inner)
-        dense_1 = nn.Linear(inner.size()[1], int(inner.size()[1] / 100))
-        dense_2 = nn.Linear(int(inner.size()[1] / 100), self.output)
+        dense_1 = nn.Linear(inner.size()[1], 1024)
+        dense_mid = nn.Linear(1024, 256)
+        dense_2 = nn.Linear(256, self.output)
         inner = F.relu(dense_1(inner))
+        inner = F.relu(dense_mid(inner))
         inner = F.relu(dense_2(inner))
         output = inner
         return output
