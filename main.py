@@ -18,6 +18,7 @@ import pickle
 import random
 import os
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 
 
 def timesince(since):
@@ -67,7 +68,7 @@ def ref_shape(first, second):
     return output
 
 
-def rand_examp(dict_in, batches, labels, force):
+def rand_examp(dict_in, batches, labels):
     """
     Random Examp From Dictionary Train/Test.
 
@@ -94,9 +95,6 @@ def delete_load_folder(path):
     print('Old Data Erased')
     return
 
-def train():
-
-
 
 if __name__ == '__main__':
     """
@@ -110,9 +108,9 @@ if __name__ == '__main__':
     labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
     not_done = True
     override_convert = True
-    update_songs = 10
+    update_songs = 1000
     clean_after_pickle = True
-    net_override = False
+    net_override = True
     override_process = True
     external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
     procd = cst.ProcessingData(labels, train_amount=0.7,
@@ -140,16 +138,23 @@ if __name__ == '__main__':
             test = pickle.load(handle)
         print('Train / Test Data Loaded')
     delete_load_folder('data_wav')
-    n_iter = 1000
-    batches = 40
-    force = 10000
-    start_example, not_needed = rand_examp(train, batches, labels, force)  # just needed for height
-    h = start_example.shape[1]
-    w = start_example.shape[2]
+
+    epoochs = 50
+    batches = 32
+    X_list = []
+    y_list = []
+    for val, lab in enumerate(labels):
+        for samp in train[lab]:
+            X_list.append(samp)
+            y_list.append(val)
+    X = np.stack(X_list, axis=0)
+    y = np.array(y_list)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
+
+    h = X_train.shape[1]
+    w = X_train.shape[2]
     channels = 1
     learning_rate = 0.001
-    stop_show = n_iter / 10
-    stop_plot = n_iter / 50
 
     train_model_path = 'model_train/train.out'
     train_condition = not Path(train_model_path).is_file()
@@ -162,17 +167,45 @@ if __name__ == '__main__':
     optimizer = optim.Adam(cnn.parameters(),
                            lr=learning_rate)
     start = time.time()
-    total_loss = 0
-    print_loss = 0
-    count = 0
-    accuracy = 0
-    count_plot = 0
-    test_tot = 10
-    all_losses = []
-    loss_bar = tqdm(range(n_iter))
+    loss_bar = tqdm(range(epoochs))
+    total_train = []
+    total_lab = []
+    breakout = False
+    train_use = X_train.shape[0]
+    for x in range(train_use):
+        start = int(x * batches)
+        end = int(start + batches - 1)
+        if end >= train_use:
+            end = int(train_use - 1)
+            start = int(end - batches)
+            breakout = True
+        total_train.append(X_train[start:end, :, :])
+        total_lab.append(y_train[start:end])
+        if breakout:
+            break
 
+    for ep in loss_bar:
+        for ind, examp in enumerate(total_train):
+            examp = torch.from_numpy(examp)
+            examp = examp.type(torch.FloatTensor)
+            examp = examp[:, None, :, :]
+
+            input = Variable(examp)
+            label_in_ten = torch.LongTensor(total_lab[ind])
+            label_in_ten = Variable(label_in_ten)
+
+            optimizer.zero_grad()
+
+            output = cnn(input)
+            # print(output, label_in_ten)
+            loss = criterion(output, label_in_ten)
+            loss.backward()
+            optimizer.step()
+            loss_bar.set_description('Loss: %1.4f' % loss.data[0])
+
+    """
     for run in loss_bar:
-        examp, label_in = rand_examp(train, batches, labels, force)
+        examp, label_in = rand_examp(train, batches, labels)
 
         examp = torch.from_numpy(examp)
         examp = examp.type(torch.FloatTensor)
@@ -213,6 +246,8 @@ if __name__ == '__main__':
         not_done = False
         plt.plot(all_losses)
         plt.show()
+    """
+
     """
     suc = 0
     attempts = 0

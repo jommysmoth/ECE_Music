@@ -166,8 +166,9 @@ class ProcessingData:
                                    self.seconds_total)
 
         for lab in self.labels:
+            """
             data = data_dict[lab]
-            top = int(len(data) * self.tr_split)
+            #top = int(len(data) * self.tr_split)
             train = []
             test = []
             for ind, samp in enumerate(data):
@@ -178,4 +179,6 @@ class ProcessingData:
             # print(len(train), len(test))
             train_dict[lab] = train
             test_dict[lab] = test
+            """
+            train_dict[lab] = data_dict[lab]
         return train_dict, test_dict
