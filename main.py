@@ -122,7 +122,7 @@ if __name__ == '__main__':
     condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
 
     if condition or override_process:
-        for lab in labels:
+        for lab in ['Rap']:
             train, test = procd.main_train_test(lab)
             with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
                 pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
