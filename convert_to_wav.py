@@ -19,6 +19,8 @@ import os
 import random
 from tqdm import tqdm
 import numpy as np
+from pathlib import Path
+import tempfile
 
 
 class ConvertToWav:
@@ -42,6 +44,20 @@ class ConvertToWav:
         self.total_conv = conversions
         self.ext_storage = ext_storage
         # String, or NoneType, depending on type needed.
+
+    def assign_new_name(self, destination_old):
+        """
+        Assign Temp Song name (only need genre and name to data munch).
+
+        Make it so files with same name (but ultimately different portions of the song)
+        can be saved independently
+        """
+        tf = tempfile.NamedTemporaryFile(prefix='song')
+        filename = tf.name[5:]
+        destination = self.out_folder + '/' + filename + '.wav'
+        if destination == destination_old:
+            filename, destination = self.assign_new_name(destination)
+        return filename, destination
 
     def mp3_to_wav(self, pathname):
         """
@@ -84,8 +100,10 @@ class ConvertToWav:
                         continue
                     rand_start = np.random.randint(0, len(mp3_form) - full_clip)
                     mp3_wav = mp3_form[rand_start:(rand_start + full_clip)]
-                    mp3_wav.export(self.out_folder + '/' + filename + '.wav',
-                                   format='wav')
+                    destin = self.out_folder + '/' + filename + '.wav'
+                    if Path(destin).is_file():
+                        filename, destin = self.assign_new_name(destin)
+                    mp3_wav.export(destin, format='wav')
                     label_list.write('%s : %s\n' % (filename, rand_lab))
                 else:
                     if file[-5:] == '.flac':
@@ -98,7 +116,10 @@ class ConvertToWav:
                             continue
                         rand_start = np.random.randint(0, len(data) - set_value)
                         new_data = data[rand_start:int(rand_start + set_value)]
-                        sf.write(self.out_folder + '/' + filename + '.wav', new_data, samprate)
+                        destin = self.out_folder + '/' + filename + '.wav'
+                        if Path(destin).is_file():
+                            filename, destin = self.assign_new_name(destin)
+                        sf.write(destin, new_data, samprate)
                         label_list.write('%s : %s\n' % (filename, rand_lab))
         return
 

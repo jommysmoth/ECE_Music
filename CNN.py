@@ -3,12 +3,8 @@ Starting Net.
 
 Working, ready for data input, need to look into batch minipulation (multiple dim output)
 """
-import numpy as np
-import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
-import torch.optim as optim
 
 
 class Net(nn.Module):
@@ -29,21 +25,30 @@ class Net(nn.Module):
         Might make function in order to most accurately create Dense layers
         """
         super(Net, self).__init__()
-        conv1_shape = 5
+        conv1_shape = 7
+        conv2_shape = 5
         pool_1_shape = 2
         pool_2_shape = 2
-        conv1_outshape = 10
-        conv2_outshape = 20
+        conv1_outshape = 20
+        conv2_outshape = 40
         self.output = output_size
-        self.conv1 = nn.Conv2d(channels,
-                               conv1_outshape,
-                               conv1_shape)
-        self.maxpool1 = nn.MaxPool2d(pool_1_shape)
-        self.conv2 = nn.Conv2d(conv1_outshape,
-                               conv2_outshape,
-                               conv1_shape)
-        self.maxpool2 = nn.MaxPool2d(pool_2_shape)
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels=channels,
+                                             out_channels=conv1_outshape,
+                                             kernel_size=conv1_shape,
+                                             stride=3,
+                                             padding=2),
+                                   nn.ReLU(),
+                                   nn.MaxPool2d(kernel_size=pool_1_shape))
+        self.conv2 = nn.Sequential(nn.Conv2d(in_channels=conv1_outshape,
+                                             out_channels=conv2_outshape,
+                                             kernel_size=conv2_shape,
+                                             stride=5,
+                                             padding=2),
+                                   nn.ReLU(),
+                                   nn.MaxPool2d(kernel_size=pool_2_shape))
+        self.dropout1 = nn.Dropout(p=0.2)
+        self.dense_mid = nn.Linear(1024, 256)
+        self.dense_out = nn.Linear(256, output_size)
 
     def forward(self, input):
         """
@@ -52,20 +57,15 @@ class Net(nn.Module):
         Moving the image through the convulutions
         have two maxpools for changing shape
         """
-        inner = F.relu(self.conv1(input))
-        inner = self.maxpool1(inner)
-        inner = F.relu(self.conv2(inner))
-        inner = self.maxpool2(inner)
-        inner = F.relu(self.conv1(input))
-        inner = self.maxpool1(inner)
-        inner = self.flatten(inner)
+        inner = self.conv1(input)
+        inner = self.conv2(inner)
+        print(inner.size())
+        inner = inner.view(inner.size(0), -1)
+
         dense_1 = nn.Linear(inner.size()[1], 1024)
-        dense_mid = nn.Linear(1024, 256)
-        dense_2 = nn.Linear(256, self.output)
-        inner = F.relu(dense_1(inner))
-        inner = F.relu(dense_mid(inner))
-        inner = F.relu(dense_2(inner))
-        output = inner
+        inner = self.dropout1(dense_1(inner))
+        inner = self.dense_mid(inner)
+        output = self.dense_out(inner)
         return output
 
     def flatten(self, input):
@@ -96,37 +96,3 @@ class Net(nn.Module):
             if out_shape == self.output:
                 return output
             in_shape = out_shape
-
-
-def main():
-    """Placeholder."""
-    batches = 30
-    channels = 2
-    h = 150
-    w = 150
-    label_size = 10
-
-    cnn = Net(batches, channels, h, w, label_size)
-
-    input = torch.randn(batches, channels, h, w)
-    input = Variable(input)
-    print(input)
-    criterion = nn.CrossEntropyLoss()
-    label = torch.LongTensor(np.random.randint(10, size=batches))
-    label = Variable(label)
-
-    optimizer = optim.SGD(cnn.parameters(),
-                          lr=0.001,
-                          momentum=0.9)
-
-    optimizer.zero_grad()
-
-    output = cnn(input)
-    loss = criterion(output, label)
-    loss.backward()
-    optimizer.step()
-
-    print(loss.data[0])
-
-if __name__ == '__main__':
-    main()

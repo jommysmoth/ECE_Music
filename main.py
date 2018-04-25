@@ -106,38 +106,43 @@ if __name__ == '__main__':
     CHANGED FOR VALIDATION SET.
     """
     labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
-    not_done = True
-    override_convert = True
-    update_songs = 1000
-    clean_after_pickle = True
+    override_convert = False
+    update_songs = 15000
     net_override = True
-    override_process = True
+    override_process = False
+    train_samples = None
     external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
     procd = cst.ProcessingData(labels, train_amount=0.7,
                                seconds_total=30,
-                               data_folder='data',
+                               data_folder=external_file_area,
                                override_convert=override_convert,
                                conversions=update_songs,
-                               ext_storage=external_file_area)
+                               ext_storage=external_file_area,
+                               train_samples=train_samples)
     condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
 
     if condition or override_process:
-        train, test = procd.main_train_test()
-        with open('data_dict/train.pickle', 'wb') as handle:
-            pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open('data_dict/test.pickle', 'wb') as handle:
-            pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        for lab in labels:
+            train, test = procd.main_train_test(lab)
+            with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
+                pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            """
+            with open('data_dict/test.pickle', 'wb') as handle:
+                pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            """
+            print('Saved ' + lab)
         if override_process:
             print('Overwrote Train / Test Data')
         else:
             print('Train / Test Data Saved')
+        exit()
     else:
         with open('data_dict/train.pickle', 'rb') as handle:
             train = pickle.load(handle)
         with open('data_dict/test.pickle', 'rb') as handle:
             test = pickle.load(handle)
         print('Train / Test Data Loaded')
-    delete_load_folder('data_wav')
+    # delete_load_folder('data_wav')
 
     epoochs = 50
     batches = 32
@@ -167,14 +172,14 @@ if __name__ == '__main__':
     optimizer = optim.Adam(cnn.parameters(),
                            lr=learning_rate)
     start = time.time()
-    loss_bar = tqdm(range(epoochs))
+    loss_bar = range(epoochs)
     total_train = []
     total_lab = []
     breakout = False
     train_use = X_train.shape[0]
     for x in range(train_use):
         start = int(x * batches)
-        end = int(start + batches - 1)
+        end = int(start + batches)
         if end >= train_use:
             end = int(train_use - 1)
             start = int(end - batches)
@@ -185,6 +190,7 @@ if __name__ == '__main__':
             break
 
     for ep in loss_bar:
+        print('hey')
         for ind, examp in enumerate(total_train):
             examp = torch.from_numpy(examp)
             examp = examp.type(torch.FloatTensor)
@@ -201,7 +207,7 @@ if __name__ == '__main__':
             loss = criterion(output, label_in_ten)
             loss.backward()
             optimizer.step()
-            loss_bar.set_description('Loss: %1.4f' % loss.data[0])
+            print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
 
     """
     for run in loss_bar:

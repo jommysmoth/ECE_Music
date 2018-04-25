@@ -33,6 +33,7 @@ from pathlib import Path
 from convert_to_wav import ConvertToWav
 import librosa
 import pyaudio
+import random
 import wave
 from tqdm import tqdm
 
@@ -46,7 +47,7 @@ class ProcessingData:
 
     def __init__(self, labels, train_amount,
                  seconds_total, data_folder, override_convert,
-                 conversions, ext_storage):
+                 conversions, ext_storage, train_samples=None):
         """
         Instance.
 
@@ -59,6 +60,7 @@ class ProcessingData:
         self.override = override_convert
         self.conversions = conversions
         self.ext_storage = ext_storage
+        self.train_samples = train_samples
 
     def find_label(self, label):
         """
@@ -102,27 +104,28 @@ class ProcessingData:
         p.terminate()
         return
 
-    def add_label(self, labels, seconds_total):
+    def add_label(self, labels, label_save, seconds_total):
         """
         Adding label to data component.
 
         Holder for now, skim metadata later
         """
         label_dict = {}
-        for ind, label in enumerate(labels):
-            song_strings = self.find_label(label)
-            song_list = []
-            for song in tqdm(song_strings):
-                # self.listen_to_clip(song)
-                y, song_lr = librosa.load(song, mono=True)
-                sp = librosa.feature.melspectrogram(y=y, sr=song_lr, n_mels=128,
-                                                    n_fft=2048, hop_length=1024)
-                sp = librosa.power_to_db(sp, ref=np.max)
-                # print(np.where(sp == 0))
-                song_list.append(sp)
-            label_dict[labels[ind]] = song_list
-            # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
-            print(label + ' Conversion Done')
+        label = label_save
+        song_strings = self.find_label(label)
+        song_list = []
+        if self.train_samples is not None:
+            song_strings = random.sample(song_strings, self.train_samples)
+        for song in tqdm(song_strings):
+            # self.listen_to_clip(song)
+            y, song_lr = librosa.load(song, mono=True)
+            sp = librosa.feature.melspectrogram(y=y, sr=song_lr, n_mels=128,
+                                                n_fft=2048, hop_length=1024)
+            sp = librosa.power_to_db(sp, ref=np.max)
+            song_list.append(sp)
+        label_dict[label] = song_list
+        # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
+        print(label + ' Conversion Done')
         return label_dict
 
     def left_right_mix(self, song, samp_rate):
@@ -142,7 +145,7 @@ class ProcessingData:
         left_right_stacked = np.stack(chn, axis=0)
         return left_right_stacked  # Channel - Data_X - Data_Y
 
-    def main_train_test(self):
+    def main_train_test(self, label_save):
         """
         Split Data.
 
@@ -163,22 +166,7 @@ class ProcessingData:
             print('Data Already Converted')
 
         data_dict = self.add_label(self.labels,
+                                   label_save,
                                    self.seconds_total)
-
-        for lab in self.labels:
-            """
-            data = data_dict[lab]
-            #top = int(len(data) * self.tr_split)
-            train = []
-            test = []
-            for ind, samp in enumerate(data):
-                if ind <= top:
-                    train.append(samp)
-                else:
-                    test.append(samp)
-            # print(len(train), len(test))
-            train_dict[lab] = train
-            test_dict[lab] = test
-            """
-            train_dict[lab] = data_dict[lab]
+        train_dict = data_dict
         return train_dict, test_dict
