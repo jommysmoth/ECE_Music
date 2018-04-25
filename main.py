@@ -117,8 +117,7 @@ if __name__ == '__main__':
                                data_folder=external_file_area,
                                override_convert=override_convert,
                                conversions=update_songs,
-                               ext_storage=external_file_area,
-                               train_samples=train_samples)
+                               ext_storage=external_file_area)
     condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
 
     if condition or override_process:
@@ -137,10 +136,10 @@ if __name__ == '__main__':
             print('Train / Test Data Saved')
         exit()
     else:
-        with open('data_dict/train.pickle', 'rb') as handle:
-            train = pickle.load(handle)
-        with open('data_dict/test.pickle', 'rb') as handle:
-            test = pickle.load(handle)
+        full_train = {}
+        for lab in labels:
+            with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
+                full_train[lab] = pickle.load(handle)
         print('Train / Test Data Loaded')
     # delete_load_folder('data_wav')
 
@@ -149,7 +148,7 @@ if __name__ == '__main__':
     X_list = []
     y_list = []
     for val, lab in enumerate(labels):
-        for samp in train[lab]:
+        for samp in full_train[lab]:
             X_list.append(samp)
             y_list.append(val)
     X = np.stack(X_list, axis=0)
