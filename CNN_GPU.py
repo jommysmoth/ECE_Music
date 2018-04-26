@@ -25,32 +25,33 @@ class Net(nn.Module):
         Might make function in order to most accurately create Dense layers
         """
         super(Net, self).__init__()
-        conv1_shape = 7
-        conv2_shape = 5
+        conv1_shape = (height, 2)
+        conv2_shape = 2
         pool_1_shape = 2
         pool_2_shape = 2
-        conv1_outshape = 20
-        conv2_outshape = 40
+        conv1_outshape = 128
+        conv2_outshape = 256
         self.output = output_size
         self.conv1 = nn.Sequential(nn.Conv2d(in_channels=channels,
                                              out_channels=conv1_outshape,
                                              kernel_size=conv1_shape,
-                                             stride=3,
-                                             padding=2),
-                                   nn.BatchNorm(conv1_outshape),
+                                             stride=1,
+                                             padding=1),
+                                   nn.BatchNorm2d(conv1_outshape),
                                    nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=pool_1_shape))
         self.conv2 = nn.Sequential(nn.Conv2d(in_channels=conv1_outshape,
                                              out_channels=conv2_outshape,
                                              kernel_size=conv2_shape,
-                                             stride=5,
+                                             stride=2,
                                              padding=2),
-                                   nn.BatchNorm(conv2_outshape),
+                                   nn.BatchNorm2d(conv2_outshape),
                                    nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=pool_2_shape))
         self.dropout1 = nn.Dropout(p=0.2)
         self.dense_mid = nn.Linear(1024, 256)
         self.dense_out = nn.Linear(256, output_size)
+        self.dense_in = nn.Linear(256*81, 1024)
 
     def forward(self, input):
         """
@@ -60,12 +61,13 @@ class Net(nn.Module):
         have two maxpools for changing shape
         """
         inner = self.conv1(input)
+        # print(inner.size())
         inner = self.conv2(inner)
-        print(inner.size())
+        # print(inner.size())
+        # exit()
         inner = inner.view(inner.size(0), -1)
-
-        dense_1 = nn.Linear(inner.size()[1], 1024)
-        inner = self.dropout1(dense_1(inner))
+        # dense_1 = nn.Linear(inner.size()[1], 1024)
+        inner = self.dropout1(self.dense_in(inner))
         inner = self.dense_mid(inner)
         output = self.dense_out(inner)
         return output
@@ -79,22 +81,3 @@ class Net(nn.Module):
         in_shape = input.size()[1] * input.size()[2] * input.size()[3]
         output = input.view(-1, in_shape)
         return output
-
-    def fully_connected(self, input):
-        """
-        State how fully connected moves.
-
-        Sure.
-        """
-        layers = 10
-        output = input
-        for x in range(layers):
-            in_shape = input.size()[0]
-            out_shape = int(in_shape / 5)
-            if out_shape < self.output:
-                out_shape = self.output
-            dense = nn.Linear(in_shape, out_shape)
-            output = F.sigmoid(dense(input))
-            if out_shape == self.output:
-                return output
-            in_shape = out_shape

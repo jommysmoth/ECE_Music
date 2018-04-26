@@ -109,7 +109,7 @@ if __name__ == '__main__':
     override_convert = False
     update_songs = 15000
     net_override = True
-    override_process = False
+    override_process = True
     train_samples = None
     external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
     procd = cst.ProcessingData(labels, train_amount=0.7,
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
 
     if condition or override_process:
-        for lab in ['Rap']:
+        for lab in ['Rock']:
             train, test = procd.main_train_test(lab)
             with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
                 pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)

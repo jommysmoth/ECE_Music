@@ -3,13 +3,12 @@ First Attempt at Classification.
 
 Using basic image classification to check accuracy on labels
 """
-import create_spec as cst
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.optim as optim
-from CNN import Net
+from CNN_GPU import Net
 import time
 import math
 import matplotlib.pyplot as plt
@@ -17,8 +16,8 @@ from pathlib import Path
 import pickle
 import random
 import os
-from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 
 def timesince(since):
@@ -96,84 +95,49 @@ def delete_load_folder(path):
     return
 
 
-if __name__ == '__main__':
-    """
-    ADD CROSS VALIDATION SET OVER X MANY SONGS IN TRAINING SET, MADE RANDOMLY FOR CONVERSION, THEN LOOPED OVER
-    FOR LETS SAY 100 EPOOCHS AND USE CROSS VALIDATION FOR 10 PERCENT OF THE TRAINING SET AND VARY TO VALIDATE
-    FOR TRAINING ONCE THE OPTIMIZATION IS DONE, SAVE MODEL AND START AGAIN FOR MORE RANDOM DATA. CHANGE TRAIN
-    AMOUNT IN MAIN CLASS, SINCE TEST AND TRAIN ARE SEPERATED MORE BY FILE PATH THAN CODE. THUS, ONLY SPITS OUT
-    ALL TRAINING SET AND ALL TEST SET, SPLITTING HAS TO BE DONE MANUALLY. LATER, IS SPLIT AND SEQUENTIALLY
-    CHANGED FOR VALIDATION SET.
-    """
-    labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
-    override_convert = False
-    update_songs = 15000
-    net_override = True
-    override_process = False
-    train_samples = None
-    external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
-    procd = cst.ProcessingData(labels, train_amount=0.7,
-                               seconds_total=30,
-                               data_folder=external_file_area,
-                               override_convert=override_convert,
-                               conversions=update_songs,
-                               ext_storage=external_file_area,
-                               train_samples=train_samples)
-    condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
-
-    if condition or override_process:
-        for lab in ['Rap']:
-            train, test = procd.main_train_test(lab)
-            with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
-                pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            """
-            with open('data_dict/test.pickle', 'wb') as handle:
-                pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            """
-            print('Saved ' + lab)
-        if override_process:
-            print('Overwrote Train / Test Data')
-        else:
-            print('Train / Test Data Saved')
-        exit()
-    else:
-        full_train = {}
-        for lab in labels:
-            with open(external_file_area + '_dict/' + lab + '.pickle', 'rb') as handle:
-                full_train[lab] = pickle.load(handle)
-    # delete_load_folder('data_wav')
-
-    epoochs = 50
-    batches = 32
-    X_list = []
+def main_pickle_load(which_cut, labels, batches, net_override=False):
+    """Used to implement segmented data."""
+    x_list = []
     y_list = []
+    print('Starting train export...')
+    full_train = {}
+    for lab in labels:
+        with open(external_file_area + '_dict/' + lab + str(which_cut) + '.pickle', 'rb') as handle:
+            full_train[lab] = pickle.load(handle)
+    print('Fully Loaded Data')
+
     for val, lab in enumerate(labels):
         for samp in full_train[lab]:
-            X_list.append(samp)
+            x_list.append(samp)
             y_list.append(val)
-    X = np.stack(X_list, axis=0)
+    full_train = None
+    x = np.stack(x_list, axis=0)
+    print(x.shape)
     y = np.array(y_list)
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
+    X_train, X_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=42)
+    x = None
+    y = None
+    print('Data Split and Randomized')
+    print(X_train.shape)
 
     h = X_train.shape[1]
     w = X_train.shape[2]
     channels = 1
-    learning_rate = 0.001
 
     train_model_path = 'model_train/train.out'
     train_condition = not Path(train_model_path).is_file()
+
     if train_condition or net_override:
         cnn = Net(batches, channels, h, w, len(labels))
         cnn.cuda()
+        print('Model Created')
     else:
         cnn = torch.load(train_model_path)
         cnn.cuda()
         print('Model Loaded In')
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(cnn.parameters(),
-                           lr=learning_rate)
+
     start = time.time()
-    loss_bar = range(epoochs)
+
     total_train = []
     total_lab = []
     breakout = False
@@ -189,22 +153,64 @@ if __name__ == '__main__':
         total_lab.append(y_train[start:end])
         if breakout:
             break
+    X_train = None
+    y_train = None
+    print('Train broken into batches')
+    return cnn, total_train, total_lab
 
+
+if __name__ == '__main__':
+    """
+    ADD CROSS VALIDATION SET OVER X MANY SONGS IN TRAINING SET, MADE RANDOMLY FOR CONVERSION, THEN LOOPED OVER
+    FOR LETS SAY 100 EPOOCHS AND USE CROSS VALIDATION FOR 10 PERCENT OF THE TRAINING SET AND VARY TO VALIDATE
+    FOR TRAINING ONCE THE OPTIMIZATION IS DONE, SAVE MODEL AND START AGAIN FOR MORE RANDOM DATA. CHANGE TRAIN
+    AMOUNT IN MAIN CLASS, SINCE TEST AND TRAIN ARE SEPERATED MORE BY FILE PATH THAN CODE. THUS, ONLY SPITS OUT
+    ALL TRAINING SET AND ALL TEST SET, SPLITTING HAS TO BE DONE MANUALLY. LATER, IS SPLIT AND SEQUENTIALLY
+    CHANGED FOR VALIDATION SET.
+    """
+    labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
+    external_file_area = 'J:/ECE_DATA/data'
+    epoochs = 50
+    loss_bar = range(epoochs)
+    batches = 4
+    learning_rate = 0.001
+    cut_amount = 9
+    train_model_path = 'model_train/train.out'
+    loss_total = []
+    loss_add = 0
     for ep in loss_bar:
-        for ind, examp in enumerate(total_train):
-            examp = torch.from_numpy(examp)
-            examp = examp.type(torch.FloatTensor)
-            examp = examp[:, None, :, :]
+        for cut in range(cut_amount):
+            print(cut)
+            cnn, total_train, total_lab = main_pickle_load(cut, labels, batches)
+            criterion = nn.CrossEntropyLoss()
+            optimizer = optim.Adam(cnn.parameters(),
+                                   lr=learning_rate)
+            for ind, examp in enumerate(total_train): 
+                examp = torch.from_numpy(examp)
+                examp = examp.type(torch.FloatTensor)
+                examp = examp[:, None, :, :]
 
-            input = Variable(examp).cuda()
-            label_in_ten = torch.LongTensor(total_lab[ind])
-            label_in_ten = Variable(label_in_ten).cuda()
+                input = Variable(examp).cuda()
+                label_in_ten = torch.LongTensor(total_lab[ind])
+                label_in_ten = Variable(label_in_ten).cuda()
 
-            optimizer.zero_grad()
+                optimizer.zero_grad()
 
-            output = cnn(input)
-            # print(output, label_in_ten)
-            loss = criterion(output, label_in_ten)
-            loss.backward()
-            optimizer.step()
-            print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
+                output = cnn(input)
+                # print(labelout(output), label_in_ten)
+                loss = criterion(output, label_in_ten)
+                loss.backward()
+                optimizer.step()
+                loss_add += loss.item()
+
+                # print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
+                loss_total.append(loss.item())
+            print(loss_add / ind)
+            loss_add = 0
+            print(loss.item())
+            torch.save(cnn, train_model_path)
+            print('Model Saved')
+            total_train = None
+            total_lab = None
+    plt.plot(loss_total)
+    plt.show()
