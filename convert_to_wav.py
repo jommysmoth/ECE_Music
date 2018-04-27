@@ -31,7 +31,7 @@ class ConvertToWav:
     non-folder use function
     """
 
-    def __init__(self, seconds_clip, path, conversions, ext_storage, folder_method='folder'):
+    def __init__(self, seconds_clip, path, conversions, ext_storage, test=False, folder_method='folder'):
         """
         Constants.
 
@@ -39,10 +39,15 @@ class ConvertToWav:
         """
         self.folder_method = folder_method
         self.seconds = seconds_clip
-        self.path = path
-        self.out_folder = path + '_wav'
-        self.total_conv = conversions
+        if test:
+            self.path = path + '_test'
+            self.out_folder = path + '_wav' + '_test'
+        else:
+            self.path = path
+            self.out_folder = path + '_wav'
+        self.total_conv = int(conversions)
         self.ext_storage = ext_storage
+        self.test = test
         # String, or NoneType, depending on type needed.
 
     def assign_new_name(self, destination_old):

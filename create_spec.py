@@ -33,7 +33,6 @@ from pathlib import Path
 from convert_to_wav import ConvertToWav
 import librosa
 import pyaudio
-import random
 import wave
 from tqdm import tqdm
 
@@ -45,31 +44,32 @@ class ProcessingData:
     Used for creating the training set of processed images,
     """
 
-    def __init__(self, labels, train_amount,
-                 seconds_total, data_folder, override_convert,
-                 conversions, ext_storage, train_samples=None):
+    def __init__(self, labels, seconds_total, data_folder, override_convert,
+                 conversions, ext_storage, test_split=0.2):
         """
         Instance.
 
         Used for Label list, length of song clips, and more as needed
         """
         self.labels = labels
-        self.tr_split = train_amount
         self.seconds_total = seconds_total
         self.path = data_folder
         self.override = override_convert
         self.conversions = conversions
         self.ext_storage = ext_storage
-        self.train_samples = train_samples
+        self.test_split = test_split
 
-    def find_label(self, label):
+    def find_label(self, label, test=False):
         """
         Adding label to data component.
 
         Solid relative path now, with be made modular if necessary
         """
         label_list = []
-        start_file = self.path + '_wav/'
+        if test:
+            start_file = self.path + '_wav_test/'
+        else:
+            start_file = self.path + '_wav/'
         labels_doc = open(start_file + 'labels.txt', 'r')
         end_file = '.wav'
         with labels_doc as doc:
@@ -104,18 +104,15 @@ class ProcessingData:
         p.terminate()
         return
 
-    def add_label(self, labels, label_save, seconds_total):
+    def add_label(self, label_save, test=False):
         """
         Adding label to data component.
 
         Holder for now, skim metadata later
         """
-        label_dict = {}
         label = label_save
-        song_strings = self.find_label(label)
+        song_strings = self.find_label(label, test)
         song_list = []
-        if self.train_samples is not None:
-            song_strings = random.sample(song_strings, self.train_samples)
         for song in tqdm(song_strings):
             # self.listen_to_clip(song)
             y, sr = librosa.load(song, mono=True)
@@ -124,10 +121,12 @@ class ProcessingData:
             sp = librosa.power_to_db(sp, ref=np.max)
             sp /= np.mean(sp)
             song_list.append(sp)
-        label_dict[label] = song_list
         # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
-        print(label + ' Conversion Done')
-        return label_dict
+        if test:
+            print(label + ' Conversion For Testing Done')
+        else:
+            print(label + ' Conversion For Training Done')
+        return song_list
 
     def left_right_mix(self, song, samp_rate):
         """
@@ -146,7 +145,7 @@ class ProcessingData:
         left_right_stacked = np.stack(chn, axis=0)
         return left_right_stacked  # Channel - Data_X - Data_Y
 
-    def main_train_test(self, label_save):
+    def main_train_test(self, label_save, train_spec=True, test_spec=False):
         """
         Split Data.
 
@@ -156,18 +155,31 @@ class ProcessingData:
         test_dict = {}
         pathname = self.path
         ctw = ConvertToWav(self.seconds_total, pathname, self.conversions, self.ext_storage)
-        if not Path(pathname + '_wav/' + 'Data_Loaded.txt').is_file():
+        ctw_test = ConvertToWav(self.seconds_total, pathname,
+                                self.conversions * self.test_split, self.ext_storage, test=True)
+        train_cond = not Path(pathname + '_wav/' + 'Data_Loaded.txt').is_file()
+        test_cond = not Path(pathname + '_wav_test/' + 'Data_Loaded.txt').is_file()
+        if train_cond:
             ctw.mp3_to_wav(pathname)
             open(pathname + '_wav/' + 'Data_Loaded.txt', 'w')
-        elif self.override:
+            print('Converted Training Data')
+        if test_cond:
+            ctw_test.mp3_to_wav(pathname)
+            open(pathname + '_wav_test/' + 'Data_Loaded.txt', 'w')
+            print('Converted Testing Data')
+        if self.override:
             ctw.mp3_to_wav(pathname)
+            ctw_test.mp3_to_wav(pathname)
             print('Data Written Over')
-        else:
+        if (not train_cond) and (not test_cond) and (not self.override):
             print('Data Already Converted')
-
-        data_dict = self.add_label(self.labels,
-                                   label_save,
-                                   self.seconds_total)
-        train_dict = data_dict
-        # Test dictionary comes soon
+        if train_spec:
+            train_dict = self.add_label(label_save)
+        else:
+            train_dict = {}
+        if test_spec:
+            test_dict = self.add_label(label_save,
+                                       test=True)
+        else:
+            test_dict = {}
         return train_dict, test_dict

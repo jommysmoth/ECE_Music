@@ -11,6 +11,7 @@ from torch.autograd import Variable
 import torch.optim as optim
 from CNN import Net
 import time
+import itertools
 import math
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -18,6 +19,7 @@ import pickle
 import random
 import os
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
 
@@ -96,36 +98,69 @@ def delete_load_folder(path):
     return
 
 
+def plot_confusion_matrix(cm, classes, title, cmap=plt.cm.Blues):
+    """
+    Function prints and plots the confusion matrix.
+
+    Normalization can be applied by setting `normalize=True`.
+    """
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+
 if __name__ == '__main__':
     """
-    ADD CROSS VALIDATION SET OVER X MANY SONGS IN TRAINING SET, MADE RANDOMLY FOR CONVERSION, THEN LOOPED OVER
-    FOR LETS SAY 100 EPOOCHS AND USE CROSS VALIDATION FOR 10 PERCENT OF THE TRAINING SET AND VARY TO VALIDATE
-    FOR TRAINING ONCE THE OPTIMIZATION IS DONE, SAVE MODEL AND START AGAIN FOR MORE RANDOM DATA. CHANGE TRAIN
-    AMOUNT IN MAIN CLASS, SINCE TEST AND TRAIN ARE SEPERATED MORE BY FILE PATH THAN CODE. THUS, ONLY SPITS OUT
-    ALL TRAINING SET AND ALL TEST SET, SPLITTING HAS TO BE DONE MANUALLY. LATER, IS SPLIT AND SEQUENTIALLY
-    CHANGED FOR VALIDATION SET.
+    Train / Test is 80 / 20 Right Now
     """
     labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
     override_convert = False
-    update_songs = 150
+    update_songs = 300
     net_override = False
     override_process = False
     train_samples = None
+    plot_results = True
     # external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
     external_file_area = 'data'
-    procd = cst.ProcessingData(labels, train_amount=0.7,
-                               seconds_total=30,
+    procd = cst.ProcessingData(labels, seconds_total=30,
                                data_folder=external_file_area,
                                override_convert=override_convert,
                                conversions=update_songs,
                                ext_storage=external_file_area)
-    condition = not Path(external_file_area + '_dict/' + random.choice(labels) + '.pickle').is_file()
-
-    if condition or override_process:
+    dict_dest = external_file_area + '_dict/' + random.choice(labels)
+    condition_train = not Path(dict_dest + '_train.pickle').is_file()
+    condition_test = not Path(dict_dest + '_test.pickle').is_file()
+    if condition_train or condition_test or override_process:
         for lab in labels:
-            train, test = procd.main_train_test(lab)
-            with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
-                pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            if not override_process:
+                train, test = procd.main_train_test(lab, condition_train, condition_test)
+                if condition_train:
+                    with open(external_file_area + '_dict/' + lab + '_train.pickle', 'wb') as handle:
+                        pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                if condition_test:
+                    with open(external_file_area + '_dict/' + lab + '_test.pickle', 'wb') as handle:
+                        pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            else:
+                train, test = procd.main_train_test(lab, train_spec=True, test_spec=True)
+                with open(external_file_area + '_dict/' + lab + '_train.pickle', 'wb') as handle:
+                    pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                with open(external_file_area + '_dict/' + lab + '_test.pickle', 'wb') as handle:
+                    pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print('Saved ' + lab)
         if override_process:
             print('Overwrote Train / Test Data')
@@ -134,18 +169,20 @@ if __name__ == '__main__':
         exit()
     else:
         full_train = {}
+        full_test = {}
         for lab in labels:
-            with open(external_file_area + '_dict/' + lab + '.pickle', 'rb') as handle:
+            with open(external_file_area + '_dict/' + lab + '_train.pickle', 'rb') as handle:
                 full_train[lab] = pickle.load(handle)
+            with open(external_file_area + '_dict/' + lab + '_test.pickle', 'rb') as handle:
+                full_test[lab] = pickle.load(handle)
         print('Train / Test Data Loaded')
-    # delete_load_folder('data_wav')
 
-    epoochs = 20
+    epoochs = 8
     batches = 32
     X_list = []
     y_list = []
     for val, lab in enumerate(labels):
-        for samp in full_train[lab][lab]:
+        for samp in full_train[lab]:
             X_list.append(samp)
             y_list.append(val)
     X = np.stack(X_list, axis=0)
@@ -211,15 +248,37 @@ if __name__ == '__main__':
     cnn.eval()
     correct = 0
     total = 0
-    for ind, examp in enumerate(total_train):
-        labels = total_lab[ind]
-        examp = torch.from_numpy(examp)
+    y_pred = []
+    y_true = []
+    for val, lab in enumerate(labels):
+        for ind, examp in enumerate(full_test[lab]):
+            examp = torch.from_numpy(examp)
+            examp = examp.type(torch.FloatTensor)
+            examp = examp[None, None, :, :]
+            label_ten = torch.LongTensor([val])
+            images = Variable(examp)
+            outputs = cnn(images)
+            _, predicted = torch.max(outputs.data, 1)
+            y_pred.append(predicted[0])
+            y_true.append(val)
+            total += 1
+            correct += (predicted == label_ten).sum()
+    print('Test Accuracy is : %1.4f' % (correct / total))
+    train_pred = []
+    train_true = []
+    for run in range(X_train.shape[0]):
+        examp = torch.from_numpy(X_train[run, :, :])
         examp = examp.type(torch.FloatTensor)
-        examp = examp[:, None, :, :]
-        labels = torch.LongTensor(total_lab[ind])
+        examp = examp[None, None, :, :]
         images = Variable(examp)
         outputs = cnn(images)
         _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum()
-    print(correct / total)
+        train_pred.append(predicted[0])
+        train_true.append(y_train[run])
+    if plot_results:
+        cm_train = confusion_matrix(train_true, train_pred)
+        plot_confusion_matrix(cm_train, classes=labels, title='Train')
+        plt.figure()
+        cm = confusion_matrix(y_true, y_pred)
+        plot_confusion_matrix(cm, classes=labels, title='Test')
+        plt.show()
