@@ -110,6 +110,30 @@ class ConvertToWav:
                         filename, destin = self.assign_new_name(destin)
                     mp3_wav.export(destin, format='wav')
                     label_list.write('%s : %s\n' % (filename, rand_lab))
+                elif filetype == '.m4a':
+                    m4a_form = AudioSegment.from_file(path + '/' + file)
+                    full_clip = self.seconds * 1000  # Runs in miliseconds
+                    if full_clip > len(m4a_form):
+                        continue
+                    rand_start = np.random.randint(0, len(m4a_form) - full_clip)
+                    m4a_wav = m4a_form[rand_start:(rand_start + full_clip)]
+                    destin = self.out_folder + '/' + filename + '.wav'
+                    if Path(destin).is_file():
+                        filename, destin = self.assign_new_name(destin)
+                    m4a_wav.export(destin, format='wav')
+                    label_list.write('%s : %s\n' % (filename, rand_lab))
+                elif filetype == '.wav':
+                    wav_form = AudioSegment.from_wav(path + '/' + file)
+                    full_clip = self.seconds * 1000  # Runs in miliseconds
+                    if full_clip > len(wav_form):
+                        continue
+                    rand_start = np.random.randint(0, len(wav_form) - full_clip)
+                    wav_wav = wav_form[rand_start:(rand_start + full_clip)]
+                    destin = self.out_folder + '/' + filename + '.wav'
+                    if Path(destin).is_file():
+                        filename, destin = self.assign_new_name(destin)
+                    wav_wav.export(destin, format='wav')
+                    label_list.write('%s : %s\n' % (filename, rand_lab))
                 else:
                     if file[-5:] == '.flac':
                         filetype = file[-5:]

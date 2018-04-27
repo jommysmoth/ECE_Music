@@ -128,15 +128,15 @@ if __name__ == '__main__':
     """
     Train / Test is 80 / 20 Right Now
     """
-    labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
+    labels = ['Jazz', 'Rock', 'Rap', 'Folk', 'Classical', 'Electronic']  # Have program output this soon
     override_convert = False
-    update_songs = 300
+    update_songs = 5000
     net_override = False
     override_process = False
     train_samples = None
     plot_results = True
-    # external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
-    external_file_area = 'data'
+    external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
+    # external_file_area = 'data'
     procd = cst.ProcessingData(labels, seconds_total=30,
                                data_folder=external_file_area,
                                override_convert=override_convert,
