@@ -118,10 +118,11 @@ class ProcessingData:
             song_strings = random.sample(song_strings, self.train_samples)
         for song in tqdm(song_strings):
             # self.listen_to_clip(song)
-            y, song_lr = librosa.load(song, mono=True)
-            sp = librosa.feature.melspectrogram(y=y, sr=song_lr, n_mels=128,
-                                                n_fft=2048, hop_length=1024)
+            y, sr = librosa.load(song, mono=True)
+            sp = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=323,
+                                                n_fft=4096, hop_length=2048)
             sp = librosa.power_to_db(sp, ref=np.max)
+            sp /= np.mean(sp)
             song_list.append(sp)
         label_dict[label] = song_list
         # Each list entry has dim of Set Amount Per Label- Data_X - Data_Y - Channels
@@ -155,7 +156,6 @@ class ProcessingData:
         test_dict = {}
         pathname = self.path
         ctw = ConvertToWav(self.seconds_total, pathname, self.conversions, self.ext_storage)
-        # print(self.override, not Path(pathname + '_wav' + 'Data_Loaded.txt').is_file())
         if not Path(pathname + '_wav/' + 'Data_Loaded.txt').is_file():
             ctw.mp3_to_wav(pathname)
             open(pathname + '_wav/' + 'Data_Loaded.txt', 'w')
@@ -169,4 +169,5 @@ class ProcessingData:
                                    label_save,
                                    self.seconds_total)
         train_dict = data_dict
+        # Test dictionary comes soon
         return train_dict, test_dict

@@ -25,7 +25,7 @@ class Net(nn.Module):
         Might make function in order to most accurately create Dense layers
         """
         super(Net, self).__init__()
-        conv1_shape = 7
+        conv1_shape = (height, 1)
         conv2_shape = 5
         pool_1_shape = 2
         pool_2_shape = 2
@@ -35,20 +35,20 @@ class Net(nn.Module):
         self.conv1 = nn.Sequential(nn.Conv2d(in_channels=channels,
                                              out_channels=conv1_outshape,
                                              kernel_size=conv1_shape,
-                                             stride=3,
+                                             stride=1,
                                              padding=2),
-                                   nn.BatchNorm(conv1_outshape),
                                    nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=pool_1_shape))
         self.conv2 = nn.Sequential(nn.Conv2d(in_channels=conv1_outshape,
                                              out_channels=conv2_outshape,
                                              kernel_size=conv2_shape,
-                                             stride=5,
+                                             stride=1,
                                              padding=2),
-                                   nn.BatchNorm(conv2_outshape),
+                                   nn.BatchNorm2d(conv2_outshape),
                                    nn.ReLU(),
                                    nn.MaxPool2d(kernel_size=pool_2_shape))
         self.dropout1 = nn.Dropout(p=0.2)
+        self.dense_1 = nn.Linear(40 * 81, 1024)
         self.dense_mid = nn.Linear(1024, 256)
         self.dense_out = nn.Linear(256, output_size)
 
@@ -61,11 +61,10 @@ class Net(nn.Module):
         """
         inner = self.conv1(input)
         inner = self.conv2(inner)
-        print(inner.size())
+        # print(inner.size())
+        # exit()
         inner = inner.view(inner.size(0), -1)
-
-        dense_1 = nn.Linear(inner.size()[1], 1024)
-        inner = self.dropout1(dense_1(inner))
+        inner = self.dropout1(self.dense_1(inner))
         inner = self.dense_mid(inner)
         output = self.dense_out(inner)
         return output

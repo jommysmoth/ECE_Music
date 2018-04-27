@@ -179,8 +179,8 @@ if __name__ == '__main__':
     loss_total = []
     loss_add = 0
     for ep in loss_bar:
+        print(ep)
         for cut in range(cut_amount):
-            print(cut)
             cnn, total_train, total_lab = main_pickle_load(cut, labels, batches)
             criterion = nn.CrossEntropyLoss()
             optimizer = optim.Adam(cnn.parameters(),
@@ -207,7 +207,7 @@ if __name__ == '__main__':
                 loss_total.append(loss.item())
             print(loss_add / ind)
             loss_add = 0
-            print(loss.item())
+            # print(loss.item())
             torch.save(cnn, train_model_path)
             print('Model Saved')
             total_train = None

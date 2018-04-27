@@ -107,28 +107,25 @@ if __name__ == '__main__':
     """
     labels = ['Jazz', 'Rock', 'Rap']  # Have program output this soon
     override_convert = False
-    update_songs = 15000
-    net_override = True
-    override_process = True
+    update_songs = 150
+    net_override = False
+    override_process = False
     train_samples = None
-    external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
+    # external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
+    external_file_area = 'data'
     procd = cst.ProcessingData(labels, train_amount=0.7,
                                seconds_total=30,
                                data_folder=external_file_area,
                                override_convert=override_convert,
                                conversions=update_songs,
                                ext_storage=external_file_area)
-    condition = not Path('data_dict/train.pickle').is_file() and not Path('data_dict/test.pickle').is_file()
+    condition = not Path(external_file_area + '_dict/' + random.choice(labels) + '.pickle').is_file()
 
     if condition or override_process:
-        for lab in ['Rock']:
+        for lab in labels:
             train, test = procd.main_train_test(lab)
             with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
                 pickle.dump(train, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            """
-            with open('data_dict/test.pickle', 'wb') as handle:
-                pickle.dump(test, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            """
             print('Saved ' + lab)
         if override_process:
             print('Overwrote Train / Test Data')
@@ -138,17 +135,17 @@ if __name__ == '__main__':
     else:
         full_train = {}
         for lab in labels:
-            with open(external_file_area + '_dict/' + lab + '.pickle', 'wb') as handle:
+            with open(external_file_area + '_dict/' + lab + '.pickle', 'rb') as handle:
                 full_train[lab] = pickle.load(handle)
         print('Train / Test Data Loaded')
     # delete_load_folder('data_wav')
 
-    epoochs = 50
+    epoochs = 20
     batches = 32
     X_list = []
     y_list = []
     for val, lab in enumerate(labels):
-        for samp in full_train[lab]:
+        for samp in full_train[lab][lab]:
             X_list.append(samp)
             y_list.append(val)
     X = np.stack(X_list, axis=0)
@@ -187,89 +184,42 @@ if __name__ == '__main__':
         total_lab.append(y_train[start:end])
         if breakout:
             break
+    if train_condition or net_override:
+        for ep in loss_bar:
+            print('hey')
+            for ind, examp in enumerate(total_train):
+                examp = torch.from_numpy(examp)
+                examp = examp.type(torch.FloatTensor)
+                examp = examp[:, None, :, :]
 
-    for ep in loss_bar:
-        print('hey')
-        for ind, examp in enumerate(total_train):
-            examp = torch.from_numpy(examp)
-            examp = examp.type(torch.FloatTensor)
-            examp = examp[:, None, :, :]
+                input = Variable(examp)
+                label_in_ten = torch.LongTensor(total_lab[ind])
+                label_in_ten = Variable(label_in_ten)
 
-            input = Variable(examp)
-            label_in_ten = torch.LongTensor(total_lab[ind])
-            label_in_ten = Variable(label_in_ten)
+                optimizer.zero_grad()
 
-            optimizer.zero_grad()
-
-            output = cnn(input)
-            # print(output, label_in_ten)
-            loss = criterion(output, label_in_ten)
-            loss.backward()
-            optimizer.step()
-            print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
-
-    """
-    for run in loss_bar:
-        examp, label_in = rand_examp(train, batches, labels)
-
+                output = cnn(input)
+                # print(output, label_in_ten)
+                loss = criterion(output, label_in_ten)
+                loss.backward()
+                optimizer.step()
+                print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
+        torch.save(cnn, train_model_path)
+        print('Model Saved')
+    else:
+        cnn = torch.load(train_model_path)
+    cnn.eval()
+    correct = 0
+    total = 0
+    for ind, examp in enumerate(total_train):
+        labels = total_lab[ind]
         examp = torch.from_numpy(examp)
         examp = examp.type(torch.FloatTensor)
         examp = examp[:, None, :, :]
-
-        input = Variable(examp)
-        label_in_ten = torch.LongTensor(label_in)
-        label_in_ten = Variable(label_in_ten)
-
-        optimizer.zero_grad()
-
-        output = cnn(input)
-        # print(output, label_in_ten)
-        loss = criterion(output, label_in_ten)
-        loss.backward()
-        optimizer.step()
-        # print(loss.data[0])
-        total_loss += loss.data[0]
-        count += 1
-        count_plot += 1
-        print_loss += loss.data[0]
-        guess = labelout(output)
-        accuracy += sum(1 for x, y in zip(guess, label_in) if x == y) / len(guess)
-        if run % stop_show == 0:
-            loss_bar.set_description('Loss: %1.4f, Accuracy: %0.4f' % (print_loss / count,
-                                                                       accuracy / count))
-            print_loss = 0
-            count = 0
-            accuracy = 0
-        if run % stop_plot == 0:
-            all_losses.append(total_loss / count_plot)
-            total_loss = 0
-            count_plot = 0
-    torch.save(cnn, train_model_path)
-    print('Model Saved')
-    net_override = False
-    if loss.data[0] < 0.2:
-        not_done = False
-        plt.plot(all_losses)
-        plt.show()
-    """
-
-    """
-    suc = 0
-    attempts = 0
-    for test_am in range(test_tot):
-        rand_test, true_label = rand_examp(test, batches, labels, force)
-        rand_test = torch.from_numpy(rand_test)
-        rand_test = rand_test.type(torch.FloatTensor)
-        rand_test = rand_test[:, None, :, :]
-        rand_test = Variable(rand_test)
-        output = cnn(rand_test)
-        guess = labelout(output)
-        for ind, g in enumerate(guess):
-            if g == true_label[ind]:
-                suc += 1
-            attempts += 1
-    accuracy = (suc / attempts) * 100
-    print('\n\n Accuracy of the model is: %f' % (accuracy))
-    plt.plot(all_losses)
-    plt.show()
-    """
+        labels = torch.LongTensor(total_lab[ind])
+        images = Variable(examp)
+        outputs = cnn(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum()
+    print(correct / total)
