@@ -248,26 +248,28 @@ if __name__ == '__main__':
     else:
         print('Data Loading')
 
-    epoochs = 23
-    batches = 10
+    epoochs = 45
+    batches = 30
     cut_amount = 5
     channels = 1
-    learning_rate = 0.001
+    learning_rate = 0.0005
     start = time.time()
-    loss_bar = range(epoochs)
+    loss_bar = tqdm(range(epoochs))
+    chunk_used = 1
 
-    train_model_path = 'model_train/train.out'
+    train_model_path = 'model_train/train_' + str(epoochs) + '_epoochs_chunk_' + str(chunk_used) + '.out'
     train_condition = not Path(train_model_path).is_file()
-    _, total_train, total_lab = main_pickle_load(3, labels, batches)
+    _, total_train, total_lab = main_pickle_load(chunk_used, labels, batches)
 
     if train_condition or more_training:
-        cnn, total_train, total_lab = main_pickle_load(3, labels, batches)
+        cnn, total_train, total_lab = main_pickle_load(chunk_used, labels, batches)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(cnn.parameters(),
                               lr=learning_rate,
                               momentum=0.9)
+        loss_graph = []
         for ep in loss_bar:
-            # for cut in range(cut_amount):
+            loss_sum = 0
             for ind, examp in enumerate(total_train):
                 examp = torch.from_numpy(examp)
                 examp = examp.type(torch.FloatTensor)
@@ -284,9 +286,12 @@ if __name__ == '__main__':
                 loss = criterion(output, label_in_ten)
                 loss.backward()
                 optimizer.step()
-                print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
+                loss_sum += loss.data[0]
+                loss_graph.append(loss.data[0])
+            loss_bar.set_description('Epooch: %i  Loss: %1.4f' % (ep, loss_sum / ind))
             torch.save(cnn, train_model_path)
-            print('Model Saved')
+        plt.plot(loss_graph)
+        plt.show()
         exit()
     else:
         full_test = {}
@@ -328,8 +333,10 @@ if __name__ == '__main__':
             train_true.append(total_lab[run][bat])
     if plot_results:
         cm_train = confusion_matrix(train_true, train_pred)
-        plot_confusion_matrix(cm_train, classes=labels, title='Train')
+        train_title = 'Train: Epoochs =  %i , Learning Rate = %1.4f' % (epoochs, learning_rate)
+        test_title = 'Test: Epoochs =  %i , Learning Rate = %1.4f' % (epoochs, learning_rate)
+        plot_confusion_matrix(cm_train, classes=labels, title=train_title)
         plt.figure()
         cm = confusion_matrix(y_true, y_pred)
-        plot_confusion_matrix(cm, classes=labels, title='Test')
+        plot_confusion_matrix(cm, classes=labels, title=test_title)
         plt.show()
