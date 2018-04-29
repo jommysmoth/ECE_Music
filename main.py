@@ -124,6 +124,84 @@ def plot_confusion_matrix(cm, classes, title, cmap=plt.cm.Blues):
     plt.xlabel('Predicted label')
 
 
+def shuffle_in_unison(a, b):
+    """Used to shuffle data."""
+    assert len(a) == len(b)
+    shuffled_a = np.empty(a.shape, dtype=a.dtype)
+    shuffled_b = np.empty(b.shape, dtype=b.dtype)
+    permutation = np.random.permutation(len(a))
+    for old_index, new_index in enumerate(permutation):
+        shuffled_a[new_index] = a[old_index]
+        shuffled_b[new_index] = b[old_index]
+    return shuffled_a, shuffled_b
+
+
+def main_pickle_load(which_cut, labels, batches, net_override=False, train=True):
+    """
+    Used to load in chunk method for training / testing.
+
+    Might need to make simpler at some point
+    """
+    x_list = []
+    y_list = []
+    print('Starting train export...')
+    full = {}
+    if train:
+        add = '_train'
+    else:
+        add = '_test'
+    for lab in labels:
+        with open(external_file_area + '_dict/' + lab + add + str(which_cut) + '.pickle', 'rb') as handle:
+            full[lab] = pickle.load(handle)
+    print('Loaded Chunk %i' % which_cut)
+    for val, lab in enumerate(labels):
+        for samp in full[lab]:
+            x_list.append(samp)
+            y_list.append(val)
+    x = np.stack(x_list, axis=0)
+    y = np.array(y_list)
+    if train:
+        x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=42)
+        # Not touching validation right quick
+        print('Data Split and Randomized')
+    else:
+        x_train, y_train = shuffle_in_unison(x, y)
+        print('Data Randomized')
+    x = None
+    y = None
+
+    h = x_train.shape[1]
+    w = x_train.shape[2]
+    channels = 1
+
+    train_model_path = 'model_train/train.out'
+    train_condition = not Path(train_model_path).is_file()
+    if train_condition or net_override:
+        cnn = Net(batches, channels, h, w, len(labels))
+    else:
+        cnn = torch.load(train_model_path)
+        print('Model Loaded In')
+    total_train = []
+    total_lab = []
+    breakout = False
+    train_use = x_train.shape[0]
+    for x in range(train_use):
+        start = int(x * batches)
+        end = int(start + batches)
+        if end >= train_use:
+            end = int(train_use - 1)
+            start = int(end - batches)
+            breakout = True
+        total_train.append(x_train[start:end, :, :])
+        total_lab.append(y_train[start:end])
+        if breakout:
+            break
+    x_train = None
+    y_train = None
+    print('Broken into batches')
+    return cnn, total_train, total_lab
+
+
 if __name__ == '__main__':
     """
     Train / Test is 80 / 20 Right Now
@@ -135,8 +213,8 @@ if __name__ == '__main__':
     override_process = False
     train_samples = None
     plot_results = True
+    more_training = False
     external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
-    # external_file_area = 'data'
     procd = cst.ProcessingData(labels, seconds_total=30,
                                data_folder=external_file_area,
                                override_convert=override_convert,
@@ -168,62 +246,28 @@ if __name__ == '__main__':
             print('Train / Test Data Saved')
         exit()
     else:
-        full_train = {}
-        full_test = {}
-        for lab in labels:
-            with open(external_file_area + '_dict/' + lab + '_train.pickle', 'rb') as handle:
-                full_train[lab] = pickle.load(handle)
-            with open(external_file_area + '_dict/' + lab + '_test.pickle', 'rb') as handle:
-                full_test[lab] = pickle.load(handle)
-        print('Train / Test Data Loaded')
+        print('Data Loading')
 
-    epoochs = 8
-    batches = 32
-    X_list = []
-    y_list = []
-    for val, lab in enumerate(labels):
-        for samp in full_train[lab]:
-            X_list.append(samp)
-            y_list.append(val)
-    X = np.stack(X_list, axis=0)
-    y = np.array(y_list)
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
-
-    h = X_train.shape[1]
-    w = X_train.shape[2]
+    epoochs = 23
+    batches = 10
+    cut_amount = 5
     channels = 1
     learning_rate = 0.001
+    start = time.time()
+    loss_bar = range(epoochs)
 
     train_model_path = 'model_train/train.out'
     train_condition = not Path(train_model_path).is_file()
-    if train_condition or net_override:
-        cnn = Net(batches, channels, h, w, len(labels))
-    else:
-        cnn = torch.load(train_model_path)
-        print('Model Loaded In')
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(cnn.parameters(),
-                           lr=learning_rate)
-    start = time.time()
-    loss_bar = range(epoochs)
-    total_train = []
-    total_lab = []
-    breakout = False
-    train_use = X_train.shape[0]
-    for x in range(train_use):
-        start = int(x * batches)
-        end = int(start + batches)
-        if end >= train_use:
-            end = int(train_use - 1)
-            start = int(end - batches)
-            breakout = True
-        total_train.append(X_train[start:end, :, :])
-        total_lab.append(y_train[start:end])
-        if breakout:
-            break
-    if train_condition or net_override:
+    _, total_train, total_lab = main_pickle_load(3, labels, batches)
+
+    if train_condition or more_training:
+        cnn, total_train, total_lab = main_pickle_load(3, labels, batches)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(cnn.parameters(),
+                              lr=learning_rate,
+                              momentum=0.9)
         for ep in loss_bar:
-            print('hey')
+            # for cut in range(cut_amount):
             for ind, examp in enumerate(total_train):
                 examp = torch.from_numpy(examp)
                 examp = examp.type(torch.FloatTensor)
@@ -241,10 +285,16 @@ if __name__ == '__main__':
                 loss.backward()
                 optimizer.step()
                 print('Epooch: %i  Loss: %1.4f' % (ep, loss.data[0]))
-        torch.save(cnn, train_model_path)
-        print('Model Saved')
+            torch.save(cnn, train_model_path)
+            print('Model Saved')
+        exit()
     else:
+        full_test = {}
+        for lab in labels:
+            with open(external_file_area + '_dict/' + lab + '_test.pickle', 'rb') as handle:
+                full_test[lab] = pickle.load(handle)
         cnn = torch.load(train_model_path)
+        print('Load Test Data and Trained Model')
     cnn.eval()
     correct = 0
     total = 0
@@ -266,15 +316,16 @@ if __name__ == '__main__':
     print('Test Accuracy is : %1.4f' % (correct / total))
     train_pred = []
     train_true = []
-    for run in range(X_train.shape[0]):
-        examp = torch.from_numpy(X_train[run, :, :])
-        examp = examp.type(torch.FloatTensor)
-        examp = examp[None, None, :, :]
-        images = Variable(examp)
-        outputs = cnn(images)
-        _, predicted = torch.max(outputs.data, 1)
-        train_pred.append(predicted[0])
-        train_true.append(y_train[run])
+    for run, examp in enumerate(total_train):
+        for bat in range(batches):
+            examp_ = torch.from_numpy(examp[bat, :, :])
+            examp_ = examp_.type(torch.FloatTensor)
+            examp_ = examp_[None, None, :, :]
+            images = Variable(examp_)
+            outputs = cnn(images)
+            _, predicted = torch.max(outputs.data, 1)
+            train_pred.append(predicted[0])
+            train_true.append(total_lab[run][bat])
     if plot_results:
         cm_train = confusion_matrix(train_true, train_pred)
         plot_confusion_matrix(cm_train, classes=labels, title='Train')

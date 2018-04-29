@@ -51,6 +51,9 @@ class Net(nn.Module):
         self.dense_1 = nn.Linear(40 * 81, 1024)
         self.dense_mid = nn.Linear(1024, 256)
         self.dense_out = nn.Linear(256, output_size)
+        self.lin4 = nn.Sequential(nn.Linear(40 * 81, 1024),
+                                  nn.Linear(1024, 256),
+                                  nn.Linear(256, output_size))
 
     def forward(self, input):
         """
@@ -64,9 +67,12 @@ class Net(nn.Module):
         # print(inner.size())
         # exit()
         inner = inner.view(inner.size(0), -1)
+        """
         inner = self.dropout1(self.dense_1(inner))
         inner = self.dense_mid(inner)
         output = self.dense_out(inner)
+        """
+        output = self.lin4(inner)
         return output
 
     def flatten(self, input):
