@@ -1,2 +1,2 @@
 /model_train/
-__pycache__/
+Python_Scripts/__pycache__/*.pyc
