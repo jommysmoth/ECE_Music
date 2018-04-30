@@ -144,7 +144,6 @@ def main_pickle_load(which_cut, labels, batches, net_override=False, train=True)
     """
     x_list = []
     y_list = []
-    print('Starting train export...')
     full = {}
     if train:
         add = '_train'
@@ -174,7 +173,7 @@ def main_pickle_load(which_cut, labels, batches, net_override=False, train=True)
     w = x_train.shape[2]
     channels = 1
 
-    train_model_path = 'model_train/train.out'
+    train_model_path = '../model_train/train.out'
     train_condition = not Path(train_model_path).is_file()
     if train_condition or net_override:
         cnn = Net(batches, channels, h, w, len(labels))
@@ -252,12 +251,12 @@ if __name__ == '__main__':
     batches = 30
     cut_amount = 5
     channels = 1
-    learning_rate = 0.0005
+    learning_rate = 0.001
     start = time.time()
     loss_bar = tqdm(range(epoochs))
     chunk_used = 1
-
-    train_model_path = 'model_train/train_' + str(epoochs) + '_epoochs_chunk_' + str(chunk_used) + '.out'
+    train_model_start = '../model_train/train_' + 'set_2_'
+    train_model_path = train_model_start + str(epoochs) + '_epoochs_chunk_' + str(chunk_used) + '.out'
     train_condition = not Path(train_model_path).is_file()
     _, total_train, total_lab = main_pickle_load(chunk_used, labels, batches)
 
