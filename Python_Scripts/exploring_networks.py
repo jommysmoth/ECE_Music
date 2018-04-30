@@ -101,7 +101,7 @@ if __name__ == '__main__':
     for ind, viz_im in enumerate(list_viz):
         im = viz_im.data.numpy()
         if len(im.shape) > 2:
-            im_show = np.transpose(im[0, np.random.randint(0, im.shape[0]), :, :])
+            im_show = np.transpose(im[0, 2, :, :])
         else:
             im_show = im[0, :]
         plt.figure()
