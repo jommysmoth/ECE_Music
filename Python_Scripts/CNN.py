@@ -51,7 +51,8 @@ class Net(nn.Module):
         self.dense_1 = nn.Linear(40 * 81, 1024)
         self.dense_mid = nn.Linear(1024, 256)
         self.dense_out = nn.Linear(256, output_size)
-        self.lin4 = nn.Sequential(nn.Linear(40 * 81, 1024),
+        self.lin4 = nn.Sequential(nn.Dropout(p=0.2),
+                                  nn.Linear(40 * 81, 1024),
                                   nn.Linear(1024, 256),
                                   nn.Linear(256, output_size))
 

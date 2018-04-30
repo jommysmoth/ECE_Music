@@ -198,8 +198,26 @@ def main_pickle_load(which_cut, labels, batches, net_override=False, train=True)
     x_train = None
     y_train = None
     print('Broken into batches')
-    return cnn, total_train, total_lab
+    return cnn, total_train, total_lab, x_val, y_val
 
+
+def val_find(model, x_val, y_val):
+    """Output Val accuracy."""
+    model.eval()
+    total = 0
+    correct = 0
+    for run in range(x_val.shape[0]):
+        examp = torch.from_numpy(x_val[run, :, :])
+        examp = examp.type(torch.FloatTensor)
+        examp = examp[None, None, :, :]
+        images = Variable(examp)
+        outputs = cnn(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += 1
+        if predicted[0] == y_val[run]:
+            correct += 1
+    accuracy = correct / total
+    return accuracy
 
 if __name__ == '__main__':
     """
@@ -252,20 +270,19 @@ if __name__ == '__main__':
     channels = 1
     learning_rate = 0.001
     start = time.time()
-    loss_bar = tqdm(range(epoochs))
-    chunk_used = 4
-    train_model_start = '../model_train/train_' + 'set_2_'
+    chunk_used = 1
+    train_model_start = '../model_train/train_' + 'drpout_.2_'
     train_model_path = train_model_start + str(epoochs) + '_epoochs_chunk_' + str(chunk_used) + '.out'
     train_condition = not Path(train_model_path).is_file()
-    _, total_train, total_lab = main_pickle_load(chunk_used, labels, batches)
 
     if train_condition or more_training:
-        cnn, total_train, total_lab = main_pickle_load(chunk_used, labels, batches)
+        cnn, total_train, total_lab, x_val, y_val = main_pickle_load(chunk_used, labels, batches)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(cnn.parameters(),
                               lr=learning_rate,
                               momentum=0.9)
         loss_graph = []
+        loss_bar = tqdm(range(epoochs))
         for ep in loss_bar:
             loss_sum = 0
             for ind, examp in enumerate(total_train):
@@ -286,8 +303,11 @@ if __name__ == '__main__':
                 optimizer.step()
                 loss_sum += loss.data[0]
                 loss_graph.append(loss.data[0])
+                # val_accuracy = val_find(cnn, x_val, y_val)
+                # print(val_accuracy)
             loss_bar.set_description('Epooch: %i  Loss: %1.4f' % (ep, loss_sum / ind))
             torch.save(cnn, train_model_path)
+        print('Validation Accuracy of: %1.4f' % val_find(cnn, x_val, y_val))
         plt.plot(loss_graph)
         plt.show()
         exit()
@@ -299,6 +319,8 @@ if __name__ == '__main__':
         cnn = torch.load(train_model_path)
         print('Load Test Data and Trained Model')
     cnn.eval()
+    _, total_train, total_lab, x_val, y_val = main_pickle_load(chunk_used, labels, batches)
+    print('Validation Accuracy of: %1.4f' % val_find(cnn, x_val, y_val))
     correct = 0
     total = 0
     y_pred = []
