@@ -107,10 +107,6 @@ if __name__ == '__main__':
         plt.figure()
         plt.plot(im_show, 'o')
         plt.title(title[ind])
-
-    plt.show()
-
-    exit()
     for model in model_list:
         cnn = torch.load(model_path + model)
         cnn.eval()
@@ -120,3 +116,4 @@ if __name__ == '__main__':
         string2 = '. The correct label is ' + example_label
         print(string + string2)
         print('\n\n\n')
+    plt.show()
