@@ -247,14 +247,13 @@ if __name__ == '__main__':
     else:
         print('Data Loading')
 
-    epoochs = 45
+    epoochs = 100
     batches = 30
-    cut_amount = 5
     channels = 1
     learning_rate = 0.001
     start = time.time()
     loss_bar = tqdm(range(epoochs))
-    chunk_used = 1
+    chunk_used = 4
     train_model_start = '../model_train/train_' + 'set_2_'
     train_model_path = train_model_start + str(epoochs) + '_epoochs_chunk_' + str(chunk_used) + '.out'
     train_condition = not Path(train_model_path).is_file()

@@ -63,16 +63,8 @@ class Net(nn.Module):
         have two maxpools for changing shape
         """
         inner = self.conv1(input)
-        print(inner.size())
         inner = self.conv2(inner)
-        print(inner.size())
-        # exit()
         inner = inner.view(inner.size(0), -1)
-        """
-        inner = self.dropout1(self.dense_1(inner))
-        inner = self.dense_mid(inner)
-        output = self.dense_out(inner)
-        """
         output = self.lin4(inner)
         return output
 
