@@ -67,14 +67,14 @@ if __name__ == '__main__':
     labels = ['Jazz', 'Rock', 'Rap', 'Folk', 'Classical', 'Electronic']
     model_path = '../model_train/'
     external_example = '/media/jommysmoth/Storage/ECE_DATA/example'
-    example_label = 'Rock'
+    example_label = 'Rap'
     model_list = os.listdir(model_path)
     example_name = os.listdir(external_example)
     title = ['First Convolutional Layer',
              'First Convolutional Layer (With RelU activation)',
              'First Max Pooling Layer',
              'Second Convolutional Layer',
-             'Second Convolutional Layer (With ReLU activation)',
+             'Second Convolutional Layer (With Batch Normalization)',
              'Second Convolutional Layer (With ReLU and Batch Normalization)',
              'Second MaxPool2d Layer',
              'First Fully Connected Layer']
