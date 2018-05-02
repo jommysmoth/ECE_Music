@@ -41,3 +41,17 @@ $ pdflatex latex_file/Smith-Music_Classification.tex
 ```shell
 $ pip install -r requirements.txt
 ```
+
+## Running Code
+
+Should be setup to run properly on .zip in submission, run
+
+```shell
+$ python main.py
+```
+Once for training, then run again after with same parmeters to show test results from training. To see how it works on a song (same example as in paper), run...
+
+```shell
+$ python exploring_network.py
+```
+Once to convert file to wav, and a second time to display how all the models trained classify it, and how the network works its way through the features of the sample

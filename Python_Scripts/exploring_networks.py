@@ -66,7 +66,7 @@ def fake_network(image, output_size):
 if __name__ == '__main__':
     labels = ['Jazz', 'Rock', 'Rap', 'Folk', 'Classical', 'Electronic']
     model_path = '../model_train/'
-    external_example = '/media/jommysmoth/Storage/ECE_DATA/example'
+    external_example = '../example'
     example_label = 'Rap'
     model_list = os.listdir(model_path)
     example_name = os.listdir(external_example)
@@ -78,13 +78,15 @@ if __name__ == '__main__':
              'Second Convolutional Layer (With ReLU and Batch Normalization)',
              'Second MaxPool2d Layer',
              'First Fully Connected Layer']
+    print(len(example_name))
     if len(example_name) == 1:
         mp3_form = AudioSegment.from_mp3(external_example + '/' + example_name[0])
         full_clip = 30 * 1000  # Runs in miliseconds
         rand_start = np.random.randint(0, len(mp3_form) - full_clip)
         mp3_wav = mp3_form[rand_start:(rand_start + full_clip)]
-        destin = external_example + '/' + example_name[0] + '.wav'
+        destin = external_example + '/' + example_name[0][:-4] + '.wav'
         mp3_wav.export(destin, format='wav')
+        exit()
     song = external_example + '/' + example_name[1]
     y, sr = librosa.load(song, mono=True)
     sp = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=323,
