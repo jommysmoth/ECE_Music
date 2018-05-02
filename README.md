@@ -35,3 +35,9 @@ Used to keep track of progress on the project code (and papers evantually as wel
 ```shell
 $ pdflatex latex_file/Smith-Music_Classification.tex
 ```
+
+## Installing requirements
+
+```shell
+$ pip install -r requirements.txt
+```

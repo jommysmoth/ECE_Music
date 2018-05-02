@@ -1,0 +1,10 @@
+torch==0.3.1
+SoundFile==0.10.1
+mutagen==1.40.0
+pydub==0.21.0
+PyAudio==0.2.11
+numpy==1.14.2
+tqdm==4.23.0
+librosa==0.6.0
+matplotlib==2.2.2
+scikit_learn==0.19.1
