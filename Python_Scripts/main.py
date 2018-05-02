@@ -102,7 +102,7 @@ def plot_confusion_matrix(cm, classes, title, cmap=plt.cm.Blues):
     """
     Function prints and plots the confusion matrix.
 
-    Normalization can be applied by setting `normalize=True`.
+    Taken from scipy for ease.
     """
     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
@@ -231,14 +231,14 @@ if __name__ == '__main__':
     train_samples = None
     plot_results = True
     more_training = False
-    external_file_area = '/media/jommysmoth/Storage/ECE_DATA/data'
+    external_file_area = '../data'
     procd = cst.ProcessingData(labels, seconds_total=30,
                                data_folder=external_file_area,
                                override_convert=override_convert,
                                conversions=update_songs,
                                ext_storage=external_file_area)
     dict_dest = external_file_area + '_dict/' + random.choice(labels)
-    condition_train = not Path(dict_dest + '_train.pickle').is_file()
+    condition_train = not Path(dict_dest + '_train1.pickle').is_file()
     condition_test = not Path(dict_dest + '_test.pickle').is_file()
     if condition_train or condition_test or override_process:
         for lab in labels:
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     else:
         print('Data Loading')
 
-    epoochs = 100
+    epoochs = 10
     batches = 30
     channels = 1
     learning_rate = 0.001

@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from convert_to_wav import ConvertToWav
 import librosa
-import pyaudio
+# import pyaudio
 import wave
 from tqdm import tqdm
 
