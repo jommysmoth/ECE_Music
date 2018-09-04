@@ -4,3 +4,4 @@
 /data_wav/
 /data_wav_test/
 /example/
+/output_files/*.log

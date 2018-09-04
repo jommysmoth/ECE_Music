@@ -13,7 +13,9 @@ outcome (at least realistically) will be. (08/18/2018)
 
 Starting Execution, checking logging/parser arguments.
 """
-from .config.cfg import args, cfglogger
+from .config.cfg import args, cfgLog
 
 if __name__ == '__main__':
-	print('It worked')
+    logger = cfgLog.create_logger(__name__)
+    logger.info('AHH IM DYING')
+    print('It worked', args)

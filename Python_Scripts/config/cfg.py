@@ -18,13 +18,20 @@ development
 import argparse
 import logging
 
-logger = logging.basicConfig()
+from .log import CfgLogger
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-files',
-					'--MUSIC_PATH',
-					nargs='?',
-					default='My/default/path')
+                    '--MUSIC_PATH',
+                    nargs='?',
+                    default='My/default/path')
 args = parser.parse_args()
-print(args)
-cfglogger = logger
+
+args.LABELS = ['Jazz', 'Rock', 'Rap', 'Folk', 'Classical', 'Electronic']
+
+cfgLog = CfgLogger()
+
+logger = cfgLog.create_logger(__name__)
+
+logger.info('Oh boi im in the config')
